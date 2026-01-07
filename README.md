@@ -1,2 +1,3 @@
-# webgpu-tutorial
+# Web GPU Tutorial
+
 Learn WebGPU via code samples
