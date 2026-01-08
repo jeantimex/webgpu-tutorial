@@ -12,6 +12,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [06. Uniform Buffer](06-uniform-buffer.md) - Learn how to use uniform buffers to pass global constants (like color) to shaders.
 - [07. Index Buffer](07-index-buffer.md) - Learn how to reuse vertices using index buffers to draw a square.
 - [08. Single Transformation](08-single-transformation.md) - Learn how to move, rotate, and scale geometry using transformation matrices and wgpu-matrix.
+- [09. Combined Transformations](09-combined-transformations.md) - Learn how to chain Translation, Rotation, and Scaling for complex movements.
 
 ## Getting Started
 
