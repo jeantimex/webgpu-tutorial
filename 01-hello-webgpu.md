@@ -124,13 +124,13 @@ In this simple example, we don't pass any vertex buffers. Instead, we define the
 When your vertex shader returns a `vec4f` marked with `@builtin(position)`, the GPU doesn't just put a dot on the screen. It kicks off a series of fixed steps known as **Primitive Assembly** and **Rasterization**:
 
 1. **Clip Space**: The value you return `(x, y, z, w)` is in **Clip Space**.
-    - `x` and `y` range from `-1.0` to `1.0`. `(-1, -1)` is the bottom-left, and `(1, 1)` is the top-right.
-    - `z` ranges from `0.0` to `1.0` (for depth testing).
+   - `x` and `y` range from `-1.0` to `1.0`. `(-1, -1)` is the bottom-left, and `(1, 1)` is the top-right.
+   - `z` ranges from `0.0` to `1.0` (for depth testing).
 2. **Primitive Assembly**: The GPU takes the 3 positions returned by `vs_main` (because we said `topology: "triangle-list"`) and assembles them into a triangle.
 3. **Rasterization**:
-    - **Viewport Transformation**: The GPU maps the `-1..1` coordinates to your actual canvas pixels (e.g., `0..800` and `0..600`).
-    - **Interpolation**: The GPU figures out every single pixel (fragment) that lies _inside_ the triangle.
-    - For each of these pixels, it calls your **Fragment Shader**.
+   - **Viewport Transformation**: The GPU maps the `-1..1` coordinates to your actual canvas pixels (e.g., `0..800` and `0..600`).
+   - **Interpolation**: The GPU figures out every single pixel (fragment) that lies _inside_ the triangle.
+   - For each of these pixels, it calls your **Fragment Shader**.
 
 So, `vs_main` runs 3 times (once per corner), but `fs_main` runs thousands of times (once per pixel inside the triangle).
 

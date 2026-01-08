@@ -14,10 +14,8 @@ First, we define our geometry in standard JavaScript arrays. Since WebGPU intera
 const vertices = new Float32Array([
   0.0,
   0.5, // Vertex 1 (Top)
-
   -0.5,
   -0.5, // Vertex 2 (Bottom Left)
-
   0.5,
   -0.5, // Vertex 3 (Bottom Right)
 ]);
