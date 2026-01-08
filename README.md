@@ -13,6 +13,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [07. Index Buffer](07-index-buffer.md) - Learn how to reuse vertices using index buffers to draw a square.
 - [08. Single Transformation](08-single-transformation.md) - Learn how to move, rotate, and scale geometry using transformation matrices and wgpu-matrix.
 - [09. Combined Transformations](09-combined-transformations.md) - Learn how to chain Translation, Rotation, and Scaling for complex movements.
+- [10. Aspect Ratio](10-aspect-ratio.md) - Learn how to correct geometric distortion caused by rectangular canvases.
 
 ## Getting Started
 
