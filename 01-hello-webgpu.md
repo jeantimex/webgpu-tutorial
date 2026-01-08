@@ -68,10 +68,10 @@ export async function initWebGPU(canvas: HTMLCanvasElement) {
 
 This function handles:
 
-1.  Checking if `navigator.gpu` exists.
-2.  Requesting a `GPUAdapter` (the physical GPU).
-3.  Requesting a `GPUDevice` (the logical connection to the GPU).
-4.  Configuring the canvas context with the device and preferred format.
+1. Checking if `navigator.gpu` exists.
+2. Requesting a `GPUAdapter` (the physical GPU).
+3. Requesting a `GPUDevice` (the logical connection to the GPU).
+4. Configuring the canvas context with the device and preferred format.
 
 In our main script, we simply call this function:
 
@@ -111,6 +111,7 @@ Let's break down the function signature: `fn vs_main(@builtin(vertex_index) Vert
   - `@builtin(vertex_index)`: This gives us the index of the current vertex being processed (0, 1, or 2).
   - `@builtin(position)`: This indicates that the return value of this function is the final clip-space position of the vertex.
 - **The Analogy**: You can think of the vertex shader as a callback function in an `Array.map()` operation. The GPU runs this function _in parallel_ for every vertex you draw. If you call `draw(3)`, the GPU effectively runs:
+
   ```javascript
   // Conceptual JavaScript equivalent
   [0, 1, 2].map((VertexIndex) => vs_main(VertexIndex));
@@ -122,11 +123,11 @@ In this simple example, we don't pass any vertex buffers. Instead, we define the
 
 When your vertex shader returns a `vec4f` marked with `@builtin(position)`, the GPU doesn't just put a dot on the screen. It kicks off a series of fixed steps known as **Primitive Assembly** and **Rasterization**:
 
-1.  **Clip Space**: The value you return `(x, y, z, w)` is in **Clip Space**.
+1. **Clip Space**: The value you return `(x, y, z, w)` is in **Clip Space**.
     - `x` and `y` range from `-1.0` to `1.0`. `(-1, -1)` is the bottom-left, and `(1, 1)` is the top-right.
     - `z` ranges from `0.0` to `1.0` (for depth testing).
-2.  **Primitive Assembly**: The GPU takes the 3 positions returned by `vs_main` (because we said `topology: "triangle-list"`) and assembles them into a triangle.
-3.  **Rasterization**:
+2. **Primitive Assembly**: The GPU takes the 3 positions returned by `vs_main` (because we said `topology: "triangle-list"`) and assembles them into a triangle.
+3. **Rasterization**:
     - **Viewport Transformation**: The GPU maps the `-1..1` coordinates to your actual canvas pixels (e.g., `0..800` and `0..600`).
     - **Interpolation**: The GPU figures out every single pixel (fragment) that lies _inside_ the triangle.
     - For each of these pixels, it calls your **Fragment Shader**.

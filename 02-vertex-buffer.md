@@ -120,13 +120,13 @@ passEncoder.draw(3);
 
 This part is crucial for understanding how data flows from JavaScript to your shaders. We have three pieces that must be "wired" together correctly:
 
-1.  **The Shader Expectation**: The vertex shader declares a variable with `@location(0)`. It's basically saying: "I am waiting for data to arrive at **Shader Location 0**."
+1. **The Shader Expectation**: The vertex shader declares a variable with `@location(0)`. It's basically saying: "I am waiting for data to arrive at **Shader Location 0**."
 
-2.  **The JavaScript Delivery**: During the render pass, we call `passEncoder.setVertexBuffer(0, vertexBuffer)`. This plugs our `vertexBuffer` into **Buffer Slot 0**. Think of this like plugging a cable into Port 0 on a hardware device.
+2. **The JavaScript Delivery**: During the render pass, we call `passEncoder.setVertexBuffer(0, vertexBuffer)`. This plugs our `vertexBuffer` into **Buffer Slot 0**. Think of this like plugging a cable into Port 0 on a hardware device.
 
-3.  **The Pipeline Connection (The Bridge)**: This is where the `vertexBufferLayout` comes in. When we create the pipeline, we define the "wiring" in the `buffers` array:
-    - We tell the pipeline: "Look at the buffer plugged into **Slot 0**."
-    - We then define an attribute within that layout: "Take the data from this buffer and send it to **Shader Location 0**."
+3. **The Pipeline Connection (The Bridge)**: This is where the `vertexBufferLayout` comes in. When we create the pipeline, we define the "wiring" in the `buffers` array:
+   - We tell the pipeline: "Look at the buffer plugged into **Slot 0**."
+   - We then define an attribute within that layout: "Take the data from this buffer and send it to **Shader Location 0**."
 
 **The data flow looks like this:** `JavaScript Buffer` → `Slot 0` → `Pipeline Bridge` → `Shader Location 0` → `vs_main(@location(0))`
 
