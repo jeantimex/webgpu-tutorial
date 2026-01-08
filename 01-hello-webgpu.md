@@ -34,12 +34,44 @@ The **Device** is a logical connection to the Adapter. It is the object you use 
 
 ## 1. Initialization
 
-First, we need to initialize WebGPU. We've extracted the boilerplate initialization code into a utility function `initWebGPU`. This function handles:
+First, we need to initialize WebGPU. We've extracted the boilerplate initialization code into a utility function `initWebGPU`.
 
-1. Checking if `navigator.gpu` exists.
-2. Requesting a `GPUAdapter` (the physical GPU).
-3. Requesting a `GPUDevice` (the logical connection to the GPU).
-4. Configuring the canvas context with the device and preferred format.
+```typescript
+export async function initWebGPU(canvas: HTMLCanvasElement) {
+  if (!navigator.gpu) {
+    throw new Error("WebGPU not supported on this browser.");
+  }
+
+  const adapter: GPUAdapter | null = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    throw new Error("No appropriate GPUAdapter found.");
+  }
+
+  const device: GPUDevice = await adapter.requestDevice();
+
+  const context: GPUCanvasContext | null = canvas.getContext("webgpu");
+
+  if (!context) {
+    throw new Error("WebGPU context not found.");
+  }
+
+  const canvasFormat: GPUTextureFormat =
+    navigator.gpu.getPreferredCanvasFormat();
+  context.configure({
+    device: device,
+    format: canvasFormat,
+  });
+
+  return { device, context, canvasFormat, adapter };
+}
+```
+
+This function handles:
+
+1.  Checking if `navigator.gpu` exists.
+2.  Requesting a `GPUAdapter` (the physical GPU).
+3.  Requesting a `GPUDevice` (the logical connection to the GPU).
+4.  Configuring the canvas context with the device and preferred format.
 
 In our main script, we simply call this function:
 
@@ -56,30 +88,72 @@ async function init(): Promise<void> {
 
 WebGPU uses **WGSL** (WebGPU Shading Language). We need two shaders:
 
-- **Vertex Shader (`vs_main`)**: Computes the position of each vertex. In this simple example, we define the vertex positions directly in the shader using an array, using the `vertex_index` to pick one.
-- **Fragment Shader (`fs_main`)**: Determines the color of each pixel drawn. We simply return red `(1.0, 0.0, 0.0, 1.0)`.
+### Vertex Shader (`vs_main`)
+
+The vertex shader is responsible for computing the position of each vertex.
 
 ```typescript
-const shaderModule: GPUShaderModule = device.createShaderModule({
-  label: "Red Triangle Shader",
-  code: `
-      @vertex
-      fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
-        var pos = array<vec2f, 3>(
-          vec2f(0.0, 0.5),
-          vec2f(-0.5, -0.5),
-          vec2f(0.5, -0.5)
-        );
-        return vec4f(pos[VertexIndex], 0.0, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return vec4f(1.0, 0.0, 0.0, 1.0);
-      }
-    `,
-});
+@vertex
+fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
+  var pos = array<vec2f, 3>(
+    vec2f(0.0, 0.5),
+    vec2f(-0.5, -0.5),
+    vec2f(0.5, -0.5)
+  );
+  return vec4f(pos[VertexIndex], 0.0, 1.0);
+}
 ```
+
+Let's break down the function signature: `fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f`
+
+- `@vertex`: This attribute tells WebGPU that this function is an entry point for the vertex stage.
+- **Built-in Variables**: The syntax `@builtin(...)` binds a variable to a specific system value.
+  - `@builtin(vertex_index)`: This gives us the index of the current vertex being processed (0, 1, or 2).
+  - `@builtin(position)`: This indicates that the return value of this function is the final clip-space position of the vertex.
+- **The Analogy**: You can think of the vertex shader as a callback function in an `Array.map()` operation. The GPU runs this function _in parallel_ for every vertex you draw. If you call `draw(3)`, the GPU effectively runs:
+  ```javascript
+  // Conceptual JavaScript equivalent
+  [0, 1, 2].map((VertexIndex) => vs_main(VertexIndex));
+  ```
+
+In this simple example, we don't pass any vertex buffers. Instead, we define the positions directly in an array inside the shader and use the `VertexIndex` to pick the correct position.
+
+### Deep Dive: What happens to `@builtin(position)`?
+
+When your vertex shader returns a `vec4f` marked with `@builtin(position)`, the GPU doesn't just put a dot on the screen. It kicks off a series of fixed steps known as **Primitive Assembly** and **Rasterization**:
+
+1.  **Clip Space**: The value you return `(x, y, z, w)` is in **Clip Space**.
+    - `x` and `y` range from `-1.0` to `1.0`. `(-1, -1)` is the bottom-left, and `(1, 1)` is the top-right.
+    - `z` ranges from `0.0` to `1.0` (for depth testing).
+2.  **Primitive Assembly**: The GPU takes the 3 positions returned by `vs_main` (because we said `topology: "triangle-list"`) and assembles them into a triangle.
+3.  **Rasterization**:
+    - **Viewport Transformation**: The GPU maps the `-1..1` coordinates to your actual canvas pixels (e.g., `0..800` and `0..600`).
+    - **Interpolation**: The GPU figures out every single pixel (fragment) that lies _inside_ the triangle.
+    - For each of these pixels, it calls your **Fragment Shader**.
+
+So, `vs_main` runs 3 times (once per corner), but `fs_main` runs thousands of times (once per pixel inside the triangle).
+
+### Fragment Shader (`fs_main`)
+
+The fragment shader determines the color of each pixel drawn.
+
+```typescript
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 1.0);
+}
+```
+
+Let's break down the signature: `fn fs_main() -> @location(0) vec4f`
+
+- `@fragment`: Marks this function as the entry point for the fragment stage.
+- **Return Value**: It returns a `vec4f` (Red, Green, Blue, Alpha).
+- `@location(0)`: This is the critical link to the screen.
+  - It tells WebGPU to write this color output to the **first color attachment** (index 0) of the current render pass.
+  - In our `render` function later, you'll see we define `colorAttachments` array. The 0th element of that array corresponds to `@location(0)`.
+  - If you had multiple render targets (e.g., for deferred rendering), you could have `@location(1)`, `@location(2)`, etc.
+
+In our case, `@location(0)` maps directly to the texture view of the canvas, so returning red here makes the pixel on the screen red.
 
 ## 3. Creating the Render Pipeline
 
@@ -131,9 +205,9 @@ WebGPU works differently from WebGL's immediate mode. You don't execute commands
 1. **Command Encoder (`GPUCommandEncoder`)**: Think of this as a "recorder." You use it to record a series of GPU commands (like "copy buffer," "start render pass"). It doesn't execute anything yet; it just builds a list of instructions.
 
 2. **Render Pass (`GPURenderPassEncoder`)**: This is a specific phase of recording dedicated to drawing. You must start a render pass to issue draw calls. It defines the "framebuffer" configuration:
-    - **Attachments**: Which textures (images) we are drawing into.
-    - **Load Operations**: What to do with the existing data in the texture (e.g., `clear` it to a color, or `load` the existing content).
-    - **Store Operations**: Whether to save (`store`) the results after drawing.
+   - **Attachments**: Which textures (images) we are drawing into.
+   - **Load Operations**: What to do with the existing data in the texture (e.g., `clear` it to a color, or `load` the existing content).
+   - **Store Operations**: Whether to save (`store`) the results after drawing.
 
 3. **Command Buffer**: When you finish encoding (`encoder.finish()`), you get a `GPUCommandBuffer`. This is a sealed packet of work ready for the GPU.
 
@@ -160,7 +234,8 @@ function render(): void {
   };
 
   // 4. Start the render pass
-  const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+  const passEncoder: GPURenderPassEncoder =
+    commandEncoder.beginRenderPass(renderPassDescriptor);
 
   // 5. Set the state (pipeline) and issue draw commands
   passEncoder.setPipeline(pipeline);
@@ -170,6 +245,23 @@ function render(): void {
   passEncoder.end();
 
   // 7. Finish recording and submit the work to the GPU
-  device.queue.submit([commandEncoder.finish()]);
+    device.queue.submit([commandEncoder.finish()]);
+  }
+
+  render();
 }
 ```
+
+## Summary & Next Steps
+
+In this tutorial, we successfully:
+
+- Initialized WebGPU and obtained a `GPUDevice`.
+- Learned about the differences between WebGL and WebGPU.
+- Wrote basic WGSL shaders for vertices and fragments.
+- Created an immutable `GPURenderPipeline`.
+- Recorded and submitted commands via a `GPUCommandEncoder` and `GPUQueue`.
+
+Currently, our triangle's vertices are **hardcoded** inside the WGSL shader code. While this works for simple demos, real-world applications need to pass dynamic data from JavaScript to the GPU.
+
+In the next tutorial, we will learn how to use **Vertex Buffers** to send geometry data from our TypeScript code directly to the shader!
