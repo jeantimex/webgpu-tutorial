@@ -36,10 +36,10 @@ The **Device** is a logical connection to the Adapter. It is the object you use 
 
 First, we need to initialize WebGPU. We've extracted the boilerplate initialization code into a utility function `initWebGPU`. This function handles:
 
-1.  Checking if `navigator.gpu` exists.
-2.  Requesting a `GPUAdapter` (the physical GPU).
-3.  Requesting a `GPUDevice` (the logical connection to the GPU).
-4.  Configuring the canvas context with the device and preferred format.
+1. Checking if `navigator.gpu` exists.
+2. Requesting a `GPUAdapter` (the physical GPU).
+3. Requesting a `GPUDevice` (the logical connection to the GPU).
+4. Configuring the canvas context with the device and preferred format.
 
 In our main script, we simply call this function:
 
@@ -128,59 +128,48 @@ WebGPU works differently from WebGL's immediate mode. You don't execute commands
 
 ### Key Concepts
 
-1.  **Command Encoder (`GPUCommandEncoder`)**:
-    Think of this as a "recorder." You use it to record a series of GPU commands (like "copy buffer," "start render pass"). It doesn't execute anything yet; it just builds a list of instructions.
+1. **Command Encoder (`GPUCommandEncoder`)**: Think of this as a "recorder." You use it to record a series of GPU commands (like "copy buffer," "start render pass"). It doesn't execute anything yet; it just builds a list of instructions.
 
-2.  **Render Pass (`GPURenderPassEncoder`)**:
-    This is a specific phase of recording dedicated to drawing. You must start a render pass to issue draw calls. It defines the "framebuffer" configuration:
+2. **Render Pass (`GPURenderPassEncoder`)**: This is a specific phase of recording dedicated to drawing. You must start a render pass to issue draw calls. It defines the "framebuffer" configuration:
     - **Attachments**: Which textures (images) we are drawing into.
     - **Load Operations**: What to do with the existing data in the texture (e.g., `clear` it to a color, or `load` the existing content).
     - **Store Operations**: Whether to save (`store`) the results after drawing.
 
-3.  **Command Buffer**:
-    When you finish encoding (`encoder.finish()`), you get a `GPUCommandBuffer`. This is a sealed packet of work ready for the GPU.
+3. **Command Buffer**: When you finish encoding (`encoder.finish()`), you get a `GPUCommandBuffer`. This is a sealed packet of work ready for the GPU.
 
-4.  **Queue (`device.queue`)**:
-    This is the scheduler for the GPU. You `submit` your command buffers to the queue, and the GPU executes them asynchronously.
+4. **Queue (`device.queue`)**: This is the scheduler for the GPU. You `submit` your command buffers to the queue, and the GPU executes them asynchronously.
 
 ```typescript
-  function render(): void {
-    // 1. Create a command encoder to record our commands
-    const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
+function render(): void {
+  // 1. Create a command encoder to record our commands
+  const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
 
-    // 2. Get the current texture from the canvas to draw into
-    const textureView: GPUTextureView = context!.getCurrentTexture().createView();
+  // 2. Get the current texture from the canvas to draw into
+  const textureView: GPUTextureView = context!.getCurrentTexture().createView();
 
-    // 3. Define the render pass: Clear the screen to dark gray, then store the result
-    const renderPassDescriptor: GPURenderPassDescriptor = {
-      colorAttachments: [
-        {
-          view: textureView,
-          clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
-          loadOp: "clear",
-          storeOp: "store",
-        },
-      ],
-    };
+  // 3. Define the render pass: Clear the screen to dark gray, then store the result
+  const renderPassDescriptor: GPURenderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: textureView,
+        clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
+        loadOp: "clear",
+        storeOp: "store",
+      },
+    ],
+  };
 
-    // 4. Start the render pass
-    const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+  // 4. Start the render pass
+  const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
-    // 5. Set the state (pipeline) and issue draw commands
-    passEncoder.setPipeline(pipeline);
-    passEncoder.draw(3); // Draw 3 vertices
+  // 5. Set the state (pipeline) and issue draw commands
+  passEncoder.setPipeline(pipeline);
+  passEncoder.draw(3); // Draw 3 vertices
 
-    // 6. End the render pass
-    passEncoder.end();
+  // 6. End the render pass
+  passEncoder.end();
 
-    // 7. Finish recording and submit the work to the GPU
-    device.queue.submit([commandEncoder.finish()]);
-  }
-
-  render();
+  // 7. Finish recording and submit the work to the GPU
+  device.queue.submit([commandEncoder.finish()]);
 }
-
-init().catch((err: Error) => {
-  console.error(err);
-});
 ```
