@@ -14,6 +14,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [08. Single Transformation](08-single-transformation.md) - Learn how to move, rotate, and scale geometry using transformation matrices and wgpu-matrix.
 - [09. Combined Transformations](09-combined-transformations.md) - Learn how to chain Translation, Rotation, and Scaling for complex movements.
 - [10. Aspect Ratio](10-aspect-ratio.md) - Learn how to correct geometric distortion caused by rectangular canvases.
+- [11. Instancing](11-instancing.md) - Learn how to draw multiple copies of the same geometry efficiently using storage buffers and instanced drawing.
 
 ## Getting Started
 
