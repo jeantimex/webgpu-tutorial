@@ -55,9 +55,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
 
 ## Why use Structs?
 
-1.  **Organization**: Keeps related data together.
-2.  **Readability**: `input.color` is clearer than just `color`.
-3.  **Scalability**: Adding a new attribute (like a Texture Coordinate) involves just adding a field to the struct, rather than changing function signatures everywhere.
+1. **Organization**: Keeps related data together.
+2. **Readability**: `input.color` is clearer than just `color`.
+3. **Scalability**: Adding a new attribute (like a Texture Coordinate) involves just adding a field to the struct, rather than changing function signatures everywhere.
 
 ## Full Code
 
@@ -70,22 +70,11 @@ async function init() {
 
   // 1. Define Interleaved Data (Same as 04)
   // x, y, r, g, b
+  // prettier-ignore
   const vertices = new Float32Array([
-    0.0,
-    0.5,
-    1.0,
-    0.0,
-    0.0, // Top (Red)
-    -0.5,
-    -0.5,
-    0.0,
-    1.0,
-    0.0, // Bottom Left (Green)
-    0.5,
-    -0.5,
-    0.0,
-    0.0,
-    1.0, // Bottom Right (Blue)
+    0.0,  0.5,  1.0, 0.0, 0.0, // Top (Red)
+    -0.5, -0.5, 0.0, 1.0, 0.0, // Bottom Left (Green)
+    0.5,  -0.5, 0.0, 0.0, 1.0  // Bottom Right (Blue)
   ]);
 
   const vertexBuffer = device.createBuffer({

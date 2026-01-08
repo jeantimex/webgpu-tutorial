@@ -6,23 +6,12 @@ async function init() {
 
   // 1. Define Interleaved Data
   // Each vertex has 5 values: x, y (position) + r, g, b (color)
+  // prettier-ignore
   const vertices = new Float32Array([
     // x,   y,    r,   g,   b
-    0.0,
-    0.5,
-    1.0,
-    0.0,
-    0.0, // Top (Red)
-    -0.5,
-    -0.5,
-    0.0,
-    1.0,
-    0.0, // Bottom Left (Green)
-    0.5,
-    -0.5,
-    0.0,
-    0.0,
-    1.0, // Bottom Right (Blue)
+    0.0,  0.5,  1.0, 0.0, 0.0, // Top (Red)
+    -0.5, -0.5, 0.0, 1.0, 0.0, // Bottom Left (Green)
+    0.5,  -0.5, 0.0, 0.0, 1.0  // Bottom Right (Blue)
   ]);
 
   // 2. Create ONE Buffer

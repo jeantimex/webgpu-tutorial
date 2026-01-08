@@ -9,23 +9,12 @@ This means we pack all the attributes for a single vertex (position, color, norm
 Instead of two arrays, we have one huge array. For each vertex, we store `x, y` followed immediately by `r, g, b`.
 
 ```typescript
+// x, y, r, g, b
+// prettier-ignore
 const vertices = new Float32Array([
-  // x,   y,    r,   g,   b
-  0.0,
-  0.5,
-  1.0,
-  0.0,
-  0.0, // Vertex 1
-  -0.5,
-  -0.5,
-  0.0,
-  1.0,
-  0.0, // Vertex 2
-  0.5,
-  -0.5,
-  0.0,
-  0.0,
-  1.0, // Vertex 3
+  0.0,  0.5,  1.0, 0.0, 0.0, // Vertex 1
+  -0.5, -0.5, 0.0, 1.0, 0.0, // Vertex 2
+  0.5,  -0.5, 0.0, 0.0, 1.0  // Vertex 3
 ]);
 ```
 
@@ -89,23 +78,12 @@ async function init() {
 
   // 1. Define Interleaved Data
   // Each vertex has 5 values: x, y (position) + r, g, b (color)
+  // prettier-ignore
   const vertices = new Float32Array([
     // x,   y,    r,   g,   b
-    0.0,
-    0.5,
-    1.0,
-    0.0,
-    0.0, // Top (Red)
-    -0.5,
-    -0.5,
-    0.0,
-    1.0,
-    0.0, // Bottom Left (Green)
-    0.5,
-    -0.5,
-    0.0,
-    0.0,
-    1.0, // Bottom Right (Blue)
+    0.0,  0.5,  1.0, 0.0, 0.0, // Top (Red)
+    -0.5, -0.5, 0.0, 1.0, 0.0, // Bottom Left (Green)
+    0.5,  -0.5, 0.0, 0.0, 1.0  // Bottom Right (Blue)
   ]);
 
   // 2. Create ONE Buffer

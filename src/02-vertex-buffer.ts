@@ -6,13 +6,11 @@ async function init() {
 
   // 1. Define Vertex Data (Triangle)
   // Each vertex has 2 floats (x, y)
+  // prettier-ignore
   const vertices = new Float32Array([
-    0.0,
-    0.5, // Vertex 1 (Top)
-    -0.5,
-    -0.5, // Vertex 2 (Bottom Left)
-    0.5,
-    -0.5, // Vertex 3 (Bottom Right)
+    0.0,  0.5, // Vertex 1 (Top)
+    -0.5, -0.5, // Vertex 2 (Bottom Left)
+    0.5, -0.5, // Vertex 3 (Bottom Right)
   ]);
 
   // 2. Create Vertex Buffer

@@ -10,14 +10,11 @@ First, we define our geometry in standard JavaScript arrays. Since WebGPU intera
 
 ```typescript
 // Each vertex has 2 floats (x, y)
-
+// prettier-ignore
 const vertices = new Float32Array([
-  0.0,
-  0.5, // Vertex 1 (Top)
-  -0.5,
-  -0.5, // Vertex 2 (Bottom Left)
-  0.5,
-  -0.5, // Vertex 3 (Bottom Right)
+  0.0,  0.5, // Vertex 1 (Top)
+  -0.5, -0.5, // Vertex 2 (Bottom Left)
+  0.5, -0.5, // Vertex 3 (Bottom Right)
 ]);
 ```
 
@@ -26,12 +23,9 @@ const vertices = new Float32Array([
 GPU memory allocation requires us to think in bytes.
 
 - **`Float32`**: A 32-bit floating-point number.
-
 - **32 bits = 4 bytes**.
-
-- Our array has **6 elements** (3 vertices \* 2 coordinates each).
-
-- Total size = **6 \* 4 bytes = 24 bytes**.
+- Our array has **6 elements** (3 vertices * 2 coordinates each).
+- Total size = **6 * 4 bytes = 24 bytes**.
 
 Using `vertices.byteLength` in JavaScript is the safest way to get this value automatically.
 
@@ -143,13 +137,11 @@ async function init() {
 
   // 1. Define Vertex Data (Triangle)
   // Each vertex has 2 floats (x, y)
+  // prettier-ignore
   const vertices = new Float32Array([
-    0.0,
-    0.5, // Vertex 1 (Top)
-    -0.5,
-    -0.5, // Vertex 2 (Bottom Left)
-    0.5,
-    -0.5, // Vertex 3 (Bottom Right)
+    0.0,  0.5, // Vertex 1 (Top)
+    -0.5, -0.5, // Vertex 2 (Bottom Left)
+    0.5, -0.5, // Vertex 3 (Bottom Right)
   ]);
 
   // 2. Create Vertex Buffer

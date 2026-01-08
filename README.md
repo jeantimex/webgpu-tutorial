@@ -10,6 +10,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [04. Interleaved Vertex Buffers](04-interleaved-vertex-buffers.md) - Learn how to pack multiple attributes into a single vertex buffer for efficiency.
 - [05. Shader Structs](05-shader-structs.md) - Learn how to organize shader inputs and outputs using WGSL structs.
 - [06. Uniform Buffer](06-uniform-buffer.md) - Learn how to use uniform buffers to pass global constants (like color) to shaders.
+- [07. Index Buffer](07-index-buffer.md) - Learn how to reuse vertices using index buffers to draw a square.
 
 ## Getting Started
 

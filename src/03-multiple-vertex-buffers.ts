@@ -5,26 +5,19 @@ async function init() {
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
   // 1. Define Geometry Data (Positions)
+  // prettier-ignore
   const positions = new Float32Array([
-    0.0,
-    0.5, // Top
-    -0.5,
-    -0.5, // Bottom Left
-    0.5,
-    -0.5, // Bottom Right
+    0.0,  0.5, // Top
+    -0.5, -0.5, // Bottom Left
+    0.5, -0.5  // Bottom Right
   ]);
 
   // 2. Define Color Data (RGB per vertex)
+  // prettier-ignore
   const colors = new Float32Array([
-    1.0,
-    0.0,
-    0.0, // Top: Red
-    0.0,
-    1.0,
-    0.0, // Bottom Left: Green
-    0.0,
-    0.0,
-    1.0, // Bottom Right: Blue
+    1.0, 0.0, 0.0, // Top: Red
+    0.0, 1.0, 0.0, // Bottom Left: Green
+    0.0, 0.0, 1.0  // Bottom Right: Blue
   ]);
 
   // 3. Create Buffers
