@@ -5,6 +5,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 ## Tutorials
 
 - [01. Hello WebGPU](01-hello-webgpu.md) - Learn how to set up WebGPU and draw a simple red triangle.
+- [02. Vertex Buffer](02-vertex-buffer.md) - Learn how to pass vertex data to the GPU using buffers.
 
 ## Getting Started
 

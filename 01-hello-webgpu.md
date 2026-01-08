@@ -1,4 +1,4 @@
-# Hello WebGPU
+# 01. Hello WebGPU
 
 In this first tutorial, we will walk through the process of setting up a WebGPU context and drawing a simple red triangle. This is the "Hello World" of graphics programming.
 
