@@ -1,74 +1,74 @@
 import { initWebGPU } from "./utils/webgpu-util";
+import { mat4 } from "wgpu-matrix";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  // 1. Define Interleaved Data (Same as 04)
-  // x, y, r, g, b
+  // 1. Define Vertices (Triangle)
   // prettier-ignore
   const vertices = new Float32Array([
-    0.0,  0.5,  1.0, 0.0, 0.0, // Top (Red)
-    -0.5, -0.5, 0.0, 1.0, 0.0, // Bottom Left (Green)
-    0.5,  -0.5, 0.0, 0.0, 1.0  // Bottom Right (Blue)
+     0.0,  0.5, 0.5, // Top
+    -0.5, -0.5, 0.5, // Bottom Left
+     0.5, -0.5, 0.5  // Bottom Right
   ]);
 
   const vertexBuffer = device.createBuffer({
-    label: "Interleaved Vertex Buffer",
+    label: "Vertex Buffer",
     size: vertices.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(vertexBuffer, 0, vertices);
 
-  // 2. Define Shaders with Structs
+  // 2. Define Uniform Data (Matrix)
+  // Create a translation matrix directly
+  const modelMatrix = mat4.translation([0.5, 0.0, 0.0]); // Create Uniform Buffer for the matrix
+  // 4x4 float matrix = 16 floats * 4 bytes = 64 bytes
+  const uniformBuffer = device.createBuffer({
+    label: "Uniform Matrix Buffer",
+    size: 64,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  // Upload the matrix data
+  device.queue.writeBuffer(uniformBuffer, 0, modelMatrix as Float32Array);
+
+  // 3. Define Shaders
   const shaderModule = device.createShaderModule({
-    label: "Shader Structs",
+    label: "Transformation Shader",
     code: `
-      // Define the structure of the input data coming from the Vertex Buffer
-      struct VertexInput {
-        @location(0) position : vec2f,
-        @location(1) color : vec3f,
+      struct Uniforms {
+        modelMatrix : mat4x4f,
       };
 
-      // Define the structure of the output data going to the Fragment Shader
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) color : vec3f,
-      };
+      @group(0) @binding(0) var<uniform> global : Uniforms;
 
       @vertex
-      fn vs_main(input : VertexInput) -> VertexOutput {
-        var output : VertexOutput;
-        // We can access input fields using dot notation
-        output.position = vec4f(input.position, 0.0, 1.0);
-        output.color = input.color;
-        return output;
+      fn vs_main(@location(0) pos : vec3f) -> @builtin(position) vec4f {
+        // Multiply the position by the matrix
+        // Note: W component is 1.0 for points
+        return global.modelMatrix * vec4f(pos, 1.0);
       }
 
       @fragment
-      fn fs_main(input : VertexOutput) -> @location(0) vec4f {
-        // We receive the interpolated VertexOutput here
-        return vec4f(input.color, 1.0);
+      fn fs_main() -> @location(0) vec4f {
+        return vec4f(1.0, 0.0, 0.0, 1.0); // Red
       }
     `,
   });
 
-  // 3. Define Layout (Same as 04)
-  const vertexBufferLayout: GPUVertexBufferLayout = {
-    arrayStride: 5 * 4,
-    attributes: [
-      { shaderLocation: 0, offset: 0, format: "float32x2" }, // position
-      { shaderLocation: 1, offset: 2 * 4, format: "float32x3" }, // color
-    ],
-  };
-
+  // 4. Create Pipeline
   const pipeline = device.createRenderPipeline({
-    label: "Shader Structs Pipeline",
+    label: "Transformation Pipeline",
     layout: "auto",
     vertex: {
       module: shaderModule,
       entryPoint: "vs_main",
-      buffers: [vertexBufferLayout],
+      buffers: [
+        {
+          arrayStride: 3 * 4, // 3 floats (x, y, z)
+          attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+        },
+      ],
     },
     fragment: {
       module: shaderModule,
@@ -80,6 +80,18 @@ async function init() {
     },
   });
 
+  // 5. Create Bind Group
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: { buffer: uniformBuffer },
+      },
+    ],
+  });
+
+  // 6. Render
   function render() {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
@@ -98,6 +110,7 @@ async function init() {
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(pipeline);
     passEncoder.setVertexBuffer(0, vertexBuffer);
+    passEncoder.setBindGroup(0, bindGroup);
     passEncoder.draw(3);
     passEncoder.end();
 

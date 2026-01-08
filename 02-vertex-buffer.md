@@ -24,8 +24,8 @@ GPU memory allocation requires us to think in bytes.
 
 - **`Float32`**: A 32-bit floating-point number.
 - **32 bits = 4 bytes**.
-- Our array has **6 elements** (3 vertices * 2 coordinates each).
-- Total size = **6 * 4 bytes = 24 bytes**.
+- Our array has **6 elements** (3 vertices \* 2 coordinates each).
+- Total size = **6 \* 4 bytes = 24 bytes**.
 
 Using `vertices.byteLength` in JavaScript is the safest way to get this value automatically.
 
