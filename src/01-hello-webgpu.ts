@@ -34,9 +34,11 @@ async function init(): Promise<void> {
     fragment: {
       module: shaderModule,
       entryPoint: "fs_main",
-      targets: [{
-        format: canvasFormat,
-      }],
+      targets: [
+        {
+          format: canvasFormat,
+        },
+      ],
     },
     primitive: {
       topology: "triangle-list",
@@ -45,7 +47,9 @@ async function init(): Promise<void> {
 
   function render(): void {
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
-    const textureView: GPUTextureView = context!.getCurrentTexture().createView();
+    const textureView: GPUTextureView = context!
+      .getCurrentTexture()
+      .createView();
 
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
@@ -58,7 +62,8 @@ async function init(): Promise<void> {
       ],
     };
 
-    const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    const passEncoder: GPURenderPassEncoder =
+      commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(pipeline);
     passEncoder.draw(3);
     passEncoder.end();

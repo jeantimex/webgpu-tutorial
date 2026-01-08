@@ -16,7 +16,8 @@ export async function initWebGPU(canvas: HTMLCanvasElement) {
     throw new Error("WebGPU context not found.");
   }
 
-  const canvasFormat: GPUTextureFormat = navigator.gpu.getPreferredCanvasFormat();
+  const canvasFormat: GPUTextureFormat =
+    navigator.gpu.getPreferredCanvasFormat();
   context.configure({
     device: device,
     format: canvasFormat,
