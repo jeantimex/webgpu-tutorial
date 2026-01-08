@@ -8,6 +8,8 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [02. Vertex Buffer](02-vertex-buffer.md) - Learn how to pass vertex data to the GPU using buffers.
 - [03. Multiple Vertex Buffers](03-multiple-vertex-buffers.md) - Learn how to use multiple vertex buffers for positions and colors.
 - [04. Interleaved Vertex Buffers](04-interleaved-vertex-buffers.md) - Learn how to pack multiple attributes into a single vertex buffer for efficiency.
+- [05. Shader Structs](05-shader-structs.md) - Learn how to organize shader inputs and outputs using WGSL structs.
+- [06. Uniform Buffer](06-uniform-buffer.md) - Learn how to use uniform buffers to pass global constants (like color) to shaders.
 
 ## Getting Started
 
