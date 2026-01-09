@@ -7,8 +7,26 @@ Drawing the same object many times (e.g., a forest of trees, a crowd of characte
 ## 1. Concepts
 
 - **Instance**: One copy of the object.
-- **`draw(vertexCount, instanceCount)`**: The command to draw `instanceCount` copies.
 - **`@builtin(instance_index)`**: A variable in the vertex shader that tells you which copy you are currently processing (0, 1, 2...).
+
+### The Draw Call
+
+Standard drawing uses `draw(vertexCount)`. This runs the vertex shader once for each vertex.
+
+Instanced drawing uses **`draw(vertexCount, instanceCount)`**.
+
+- This command tells the GPU to draw the entire set of vertices (`vertexCount`) multiple times (`instanceCount`).
+- **Vertex Shader Execution**: The shader runs `vertexCount * instanceCount` times total.
+- **Indexing**:
+  - `vertex_index` loops from `0` to `vertexCount - 1`.
+  - `instance_index` stays constant for one whole shape, then increments for the next copy.
+
+For example, `draw(3, 10)` means:
+
+1.  Draw vertices 0, 1, 2 with `instance_index = 0`.
+2.  Draw vertices 0, 1, 2 with `instance_index = 1`.
+3.  ...
+4.  Draw vertices 0, 1, 2 with `instance_index = 9`.
 
 ## 2. Array of Structs (Uniform Buffer)
 
@@ -25,9 +43,59 @@ struct Uniforms {
 };
 ```
 
-In JavaScript, we create one large `Float32Array` buffer and fill it with interleaved data: `[Mat0, Color0, Mat1, Color1...]`.
+### Data Preparation in JavaScript
 
-## 3. The Shader
+This is an important step. Because the GPU expects a single contiguous block of memory, we must interleave our matrices and colors in a single `Float32Array`.
+
+For each instance, we need **20 floats**:
+
+- **16 floats** for the 4x4 matrix.
+- **4 floats** for the RGBA color.
+
+```typescript
+const numInstances = 10;
+const structSizeFloat = 20; // 16 (matrix) + 4 (color)
+const instanceData = new Float32Array(numInstances * structSizeFloat);
+
+for (let i = 0; i < numInstances; i++) {
+  const base = i * structSizeFloat;
+
+  // 1. Calculate and set Matrix (starts at float index 0 within the struct)
+  const mvp = calculateMVPMatrix(); // returns Float32Array(16)
+  instanceData.set(mvp, base + 0);
+
+  // 2. Set Color (starts at float index 16 within the struct)
+  instanceData[base + 16] = r;
+  instanceData[base + 17] = g;
+  instanceData[base + 18] = b;
+  instanceData[base + 19] = a;
+}
+```
+
+The resulting memory layout looks like this: `[ Mat0 (16), Color0 (4), Mat1 (16), Color1 (4), ... ]`
+
+This layout perfectly matches our WGSL `Instance` struct definition!
+
+## 3. Pipeline Configuration
+
+Because we are passing instance data via a **Uniform Buffer** instead of a Vertex Buffer, our pipeline configuration remains simple.
+
+We **do not** need to set `stepMode: "instance"` or define multiple vertex buffer layouts. We just have a single standard vertex buffer for the triangle geometry.
+
+```typescript
+vertex: {
+  buffers: [
+    {
+      arrayStride: 3 * 4,
+      attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+    },
+  ],
+},
+```
+
+This keeps our pipeline definition clean and lets us handle complex instance data entirely in the shader.
+
+## 4. The Shader
 
 In the shader, we access the global array using `instance_index`.
 
@@ -46,7 +114,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, @location(0) pos : vec3f)
 }
 ```
 
-## 4. Drawing
+## 5. Drawing
 
 In the render loop, we simply tell the GPU how many instances to draw.
 
@@ -54,6 +122,14 @@ In the render loop, we simply tell the GPU how many instances to draw.
 // Draw 3 vertices, 10 times!
 passEncoder.draw(3, 10);
 ```
+
+## Summary & Next Steps
+
+In this tutorial, we learned how to use **Instancing** to draw multiple copies of a shape with a single draw call. We used a **Uniform Buffer Array** to store unique transformation matrices and colors for each instance.
+
+This approach is great for small to medium numbers of instances. however, WebGPU also provides another way to handle instanced data called **Instanced Vertex Buffers**. By setting the `stepMode` of a vertex buffer to `"instance"`, you can tell the GPU to automatically advance to the next data entry for each new instance drawn.
+
+In the next tutorial, we will explore `stepMode: "instance"` and see how it compares to our current approach!
 
 ## Full Code
 
@@ -148,11 +224,11 @@ async function init() {
       ) -> VertexOutput {
         // Pick the instance data
         let inst = global.instances[instanceIdx];
-        
+
         var output : VertexOutput;
         output.position = inst.matrix * vec4f(pos, 1.0);
         output.color = inst.color;
-        
+
         return output;
       }
 
