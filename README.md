@@ -18,6 +18,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [11. Instancing](11-instancing.md) - Learn how to draw multiple copies of the same geometry efficiently using storage buffers and instanced drawing.
 - [13. Instanced Vertex Buffer](13-instanced-vertex-buffer.md) - Learn to use `stepMode: "instance"` to pass per-instance data via vertex buffers.
 - [14. Switching Pipelines](14-switching-pipelines.md) - Learn how to switch render pipelines to draw objects with different shaders (Solid vs. Gradient).
+- [15. Switching Vertex Buffers](15-switching-vertex-buffers.md) - Learn how to reuse a pipeline while switching geometry data.
 
 ## Getting Started
 
