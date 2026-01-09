@@ -21,6 +21,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 13 | [Instanced Vertex Buffer](13-instanced-vertex-buffer.md) | Learn to use `stepMode: "instance"` to pass per-instance data via vertex buffers. |
 | 14 | [Switching Pipelines](14-switching-pipelines.md) | Learn how to switch render pipelines to draw objects with different shaders (Solid vs. Gradient). |
 | 15 | [Switching Vertex Buffers](15-switching-vertex-buffers.md) | Learn how to reuse a pipeline while switching geometry data. |
+| 16 | [Primitives](16-primitives.md) | Learn about different primitive topologies (Points, Lines, Triangles) by rendering multiple shapes. |
 
 ## Getting Started
 
