@@ -7,17 +7,20 @@ In this tutorial, we will explore the **Compute Pipeline**. This allows us to us
 ## Why WebGPU Compute? (vs WebGL)
 
 In **WebGL**, doing general calculations on the GPU was possible but "hacky." You had to:
+
 1.  Encode your data into the pixels of a Texture.
 2.  Write a Fragment Shader that performs the math.
 3.  Render a quad to "draw" the results into another Texture.
 4.  Read the pixels back.
 
 In **WebGPU**, Compute Shaders are **first-class citizens**.
+
 - **No Textures Required**: You work directly with **Storage Buffers** (arrays of data).
-- **Random Access Writes**: Unlike fragment shaders (which can only write to their specific pixel), compute threads can write to *any* location in a storage buffer.
+- **Random Access Writes**: Unlike fragment shaders (which can only write to their specific pixel), compute threads can write to _any_ location in a storage buffer.
 - **Shared Memory**: Threads within a "workgroup" can share data quickly.
 
 **Key Learning Points:**
+
 - Understanding the Compute Space: `@builtin(GlobalInvocationID)`, `@builtin(WorkgroupID)`, `@builtin(LocalInvocationID)`.
 - Understanding `workgroup_size` and dispatching.
 - Using `var<storage, read_write>` buffers.
@@ -25,9 +28,7 @@ In **WebGPU**, Compute Shaders are **first-class citizens**.
 
 ## 1. The Task
 
-We will create a simple array of numbers: `[0, 1, 2, ...]`
-We will ask the GPU to multiply every number by **2**.
-We will read the result back: `[0, 2, 4, ...]`
+We will create a simple array of numbers: `[0, 1, 2, ...]` We will ask the GPU to multiply every number by **2**. We will read the result back: `[0, 2, 4, ...]`
 
 ## 2. Understanding the Compute Space
 
@@ -36,16 +37,18 @@ Compute shaders don't iterate in a simple loop like a CPU. Instead, you launch a
 ### Workgroups and Invocations
 
 The grid is divided into **Workgroups**.
+
 - **Workgroup**: A block of threads that execute together and can share memory.
 - **Invocation**: A single thread execution.
 
 When you dispatch a compute job, you specify:
+
 1.  **Workgroup Size (`@workgroup_size`)**: How many threads are in one workgroup (defined in Shader).
 2.  **Dispatch Size (`dispatchWorkgroups`)**: How many workgroups to launch (defined in JavaScript).
 
-**Example:**
-If `@workgroup_size(64)` and we call `dispatchWorkgroups(2)`:
-- Total threads = 64 * 2 = 128 threads.
+**Example:** If `@workgroup_size(64)` and we call `dispatchWorkgroups(2)`:
+
+- Total threads = 64 \* 2 = 128 threads.
 - Threads 0-63 are in Workgroup 0.
 - Threads 64-127 are in Workgroup 1.
 
@@ -54,7 +57,7 @@ If `@workgroup_size(64)` and we call `dispatchWorkgroups(2)`:
 The GPU provides several built-in variables to tell each thread "who it is":
 
 - **`@builtin(global_invocation_id)`**: The unique 3D coordinate of the thread in the entire grid. (Most common).
-- **`@builtin(local_invocation_id)`**: The coordinate of the thread *inside* its workgroup.
+- **`@builtin(local_invocation_id)`**: The coordinate of the thread _inside_ its workgroup.
 - **`@builtin(workgroup_id)`**: The coordinate of the workgroup itself.
 
 For a 1D array processing task, we mostly care about `global_invocation_id.x`, which acts like the `i` in a `for` loop.
@@ -62,6 +65,7 @@ For a 1D array processing task, we mostly care about `global_invocation_id.x`, w
 ## 3. Storage Buffers
 
 For compute shaders, we typically use `storage` buffers instead of `uniform` buffers because:
+
 - **Size**: Uniform buffers are limited (usually 64KB). Storage buffers can be hundreds of megabytes.
 - **Read/Write**: Uniform buffers are read-only for the GPU. Storage buffers can be declared as `read`, `read_write`, or `write`.
 
@@ -71,7 +75,8 @@ const storageBuffer = device.createBuffer({
   // STORAGE: Used in compute shader
   // COPY_SRC: We will copy from here to read back to CPU
   // COPY_DST: We will upload initial data here
-  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  usage:
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
 });
 ```
 
@@ -111,6 +116,7 @@ computePass.setBindGroup(0, bindGroup);
 This is where we tell the GPU how many threads to launch. The argument to `dispatchWorkgroups(x, y, z)` is the **Number of Workgroups**, NOT the number of threads.
 
 **The Math:**
+
 1.  **Total Items to Process**: `dataSize` (e.g., 64).
 2.  **Workgroup Size**: Defined in WGSL as `@workgroup_size(64)`.
 3.  **Workgroups Needed**: `Math.ceil(Total Items / Workgroup Size)`.
@@ -123,6 +129,7 @@ computePass.end();
 ```
 
 If we had **100 items**:
+
 - `Math.ceil(100 / 64) = 2` Workgroups.
 - The GPU launches 2 groups of 64 threads = 128 total threads.
 - Threads 0-99 processes valid data.
@@ -137,20 +144,25 @@ GPU memory is highly optimized for the GPU, not the CPU. We generally cannot rea
 2.  **Map**: On the CPU, request access to read the Staging Buffer.
 
 ### The Staging Buffer
+
 A staging buffer is a plain buffer created with `GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST`.
 
 ### Step 1: Copy Command
+
 We use `copyBufferToBuffer` to transfer data internally on the GPU. This is very fast.
 
 ```typescript
 commandEncoder.copyBufferToBuffer(
-  storageBuffer, 0, // Source (GPU work memory)
-  stagingBuffer, 0, // Destination (CPU readable memory)
-  byteSize          // Amount to copy
+  storageBuffer,
+  0, // Source (GPU work memory)
+  stagingBuffer,
+  0, // Destination (CPU readable memory)
+  byteSize // Amount to copy
 );
 ```
 
 ### Step 2: Mapping Async
+
 After submitting the work, we ask the GPU to let us read the buffer. This is asynchronous because the GPU might still be busy writing to it.
 
 ```typescript
@@ -158,6 +170,7 @@ await stagingBuffer.mapAsync(GPUMapMode.READ);
 ```
 
 ### Step 3: Reading
+
 Once mapped, we get a view of the memory (`getMappedRange`). We **must** copy this data to a regular JavaScript array (like `Float32Array`) immediately, because it will vanish when we unmap.
 
 ```typescript
@@ -173,9 +186,13 @@ import { initWebGPU } from "./utils/webgpu-util";
 
 async function init() {
   // We don't strictly need a canvas context for compute, just the device.
-  if (!navigator.gpu) { throw new Error("WebGPU not supported"); }
+  if (!navigator.gpu) {
+    throw new Error("WebGPU not supported");
+  }
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) { throw new Error("No adapter"); }
+  if (!adapter) {
+    throw new Error("No adapter");
+  }
   const device = await adapter.requestDevice();
 
   const outputDiv = document.getElementById("output") as HTMLDivElement;
@@ -187,16 +204,18 @@ async function init() {
     inputData[i] = i;
   }
 
-  outputDiv.innerText = `Input: ${inputData.join(", ")}\n\nComputing...
-`;
+  outputDiv.innerHTML = `<strong>Input:</strong><br/>${inputData.join(" ")}<br/><br/>Computing...`;
 
   // 2. Create GPU Buffers
-  
+
   // A. Storage Buffer (GPU working memory)
   const storageBuffer = device.createBuffer({
     label: "Work Buffer",
     size: inputData.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    usage:
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_SRC |
+      GPUBufferUsage.COPY_DST,
   });
   // Upload initial data
   device.queue.writeBuffer(storageBuffer, 0, inputData);
@@ -257,14 +276,14 @@ async function init() {
 
   // 5. Run Compute Pass
   const commandEncoder = device.createCommandEncoder();
-  
+
   // Unlike the Render Pass used in previous tutorials, we start a Compute Pass here.
   // A Compute Pass is specifically for dispatching compute jobs.
   const computePass = commandEncoder.beginComputePass();
-  
+
   computePass.setPipeline(pipeline);
   computePass.setBindGroup(0, bindGroup);
-  
+
   // Dispatch:
   // We need to tell the GPU how many "Workgroups" to launch.
   // - Our data size is 64 elements.
@@ -276,13 +295,15 @@ async function init() {
   // Workgroup 1 would handle indices 64-127.
   const workgroupCount = Math.ceil(dataSize / 64);
   computePass.dispatchWorkgroups(workgroupCount);
-  
+
   computePass.end();
 
   // 6. Copy result to Staging Buffer
   commandEncoder.copyBufferToBuffer(
-    storageBuffer, 0, // Source
-    stagingBuffer, 0, // Dest
+    storageBuffer,
+    0, // Source
+    stagingBuffer,
+    0, // Dest
     inputData.byteLength // Size
   );
 
@@ -292,7 +313,7 @@ async function init() {
   // 8. Read Back
   await stagingBuffer.mapAsync(GPUMapMode.READ);
   const resultBuffer = stagingBuffer.getMappedRange();
-  
+
   // Important: Copy the data out before unmapping!
   // The mapped range becomes invalid after unmap().
   const resultData = new Float32Array(resultBuffer.slice(0));
@@ -301,10 +322,12 @@ async function init() {
   console.log("Input:", inputData);
   console.log("Output:", resultData);
 
-  outputDiv.innerText += `\n\nOutput: ${resultData.join(", ")}`;
+  outputDiv.innerHTML = `<strong>Input:</strong><br/>${inputData.join(" ")}<br/><br/><strong>Output:</strong><br/>${resultData.join(" ")}`;
 }
 
 init().catch((err) => {
   console.error(err);
-  document.getElementById("output")!.innerText = "Error: " + err.message;
+  document.getElementById("output")!.innerHTML =
+    "<strong>Error:</strong> " + err.message;
 });
+```
