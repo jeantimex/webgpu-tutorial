@@ -1,4 +1,4 @@
-# 11. Instancing
+# 12. Instancing
 
 Drawing the same object many times (e.g., a forest of trees, a crowd of characters) can be slow if you issue a separate `draw()` call for each one.
 

@@ -1,4 +1,4 @@
-# 12. Instanced Vertex Buffer
+# 13. Instanced Vertex Buffer
 
 In the previous tutorial, we used a **Uniform Buffer Array** to store instance data. In this tutorial, we will use **Instanced Vertex Buffers**, which is a more standard and scalable way to pass per-instance data.
 

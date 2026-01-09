@@ -1,4 +1,4 @@
-# 09. Combined Transformations
+# 10. Combined Transformations
 
 In this tutorial, we will apply multiple transformations at once: **Scaling**, **Rotation**, and **Translation**.
 
