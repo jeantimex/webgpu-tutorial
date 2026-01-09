@@ -7,6 +7,7 @@ Drawing the same object many times (e.g., a forest of trees, a crowd of characte
 ## 1. Concepts
 
 - **Instance**: One copy of the object.
+- **`draw(vertexCount, instanceCount)`**: The command to draw `instanceCount` copies.
 - **`@builtin(instance_index)`**: A variable in the vertex shader that tells you which copy you are currently processing (0, 1, 2...).
 
 ### The Draw Call
@@ -21,22 +22,15 @@ Instanced drawing uses **`draw(vertexCount, instanceCount)`**.
   - `vertex_index` loops from `0` to `vertexCount - 1`.
   - `instance_index` stays constant for one whole shape, then increments for the next copy.
 
-For example, `draw(3, 10)` means:
-
-1.  Draw vertices 0, 1, 2 with `instance_index = 0`.
-2.  Draw vertices 0, 1, 2 with `instance_index = 1`.
-3.  ...
-4.  Draw vertices 0, 1, 2 with `instance_index = 9`.
-
 ## 2. Array of Structs (Uniform Buffer)
 
-We can pack all per-instance data (Matrix + Color) into a single struct, and store an array of these structs in a **Uniform Buffer**.
+We can pack all per-instance data (Color + Offset) into a single struct, and store an array of these structs in a **Uniform Buffer**.
 
 ```wgsl
 struct Instance {
-  matrix : mat4x4f, // 64 bytes
   color : vec4f,    // 16 bytes
-}; // Total stride: 80 bytes
+  offset : vec2f,   // 8 bytes
+}; // Total stride: 32 bytes (16-byte alignment requirement)
 
 struct Uniforms {
   instances : array<Instance, 10>,
@@ -45,57 +39,37 @@ struct Uniforms {
 
 ### Data Preparation in JavaScript
 
-This is an important step. Because the GPU expects a single contiguous block of memory, we must interleave our matrices and colors in a single `Float32Array`.
+This is an important step. Because the GPU expects a single contiguous block of memory, we must interleave our colors and offsets in a single `Float32Array`.
 
-For each instance, we need **20 floats**:
+For each instance, we need **8 floats** (32 bytes):
 
-- **16 floats** for the 4x4 matrix.
 - **4 floats** for the RGBA color.
+- **2 floats** for the Offset.
+- **2 floats** for padding (to match the 16-byte alignment requirement of array elements in uniform buffers).
 
 ```typescript
 const numInstances = 10;
-const structSizeFloat = 20; // 16 (matrix) + 4 (color)
-const instanceData = new Float32Array(numInstances * structSizeFloat);
+const floatsPerInstance = 8;
+const instanceData = new Float32Array(numInstances * floatsPerInstance);
 
 for (let i = 0; i < numInstances; i++) {
-  const base = i * structSizeFloat;
+  const base = i * floatsPerInstance;
 
-  // 1. Calculate and set Matrix (starts at float index 0 within the struct)
-  const mvp = calculateMVPMatrix(); // returns Float32Array(16)
-  instanceData.set(mvp, base + 0);
+  // Set Color (Indices 0-3)
+  instanceData[base + 0] = r;
+  instanceData[base + 1] = g;
+  instanceData[base + 2] = b;
+  instanceData[base + 3] = a;
 
-  // 2. Set Color (starts at float index 16 within the struct)
-  instanceData[base + 16] = r;
-  instanceData[base + 17] = g;
-  instanceData[base + 18] = b;
-  instanceData[base + 19] = a;
+  // Set Offset (Indices 4-5)
+  instanceData[base + 4] = x;
+  instanceData[base + 5] = y;
 }
 ```
 
-The resulting memory layout looks like this: `[ Mat0 (16), Color0 (4), Mat1 (16), Color1 (4), ... ]`
+The resulting memory layout looks like this: `[ Color0 (4), Offset0 (2), Pad(2), Color1 (4), ... ]`
 
-This layout perfectly matches our WGSL `Instance` struct definition!
-
-## 3. Pipeline Configuration
-
-Because we are passing instance data via a **Uniform Buffer** instead of a Vertex Buffer, our pipeline configuration remains simple.
-
-We **do not** need to set `stepMode: "instance"` or define multiple vertex buffer layouts. We just have a single standard vertex buffer for the triangle geometry.
-
-```typescript
-vertex: {
-  buffers: [
-    {
-      arrayStride: 3 * 4,
-      attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
-    },
-  ],
-},
-```
-
-This keeps our pipeline definition clean and lets us handle complex instance data entirely in the shader.
-
-## 4. The Shader
+## 3. The Shader
 
 In the shader, we access the global array using `instance_index`.
 
@@ -105,16 +79,16 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, @location(0) pos : vec3f)
   // 1. Pick the instance data struct
   let inst = global.instances[instanceIdx];
 
-  // 2. Use matrix and color
+  // 2. Use offset and color
   var output : VertexOutput;
-  output.position = inst.matrix * vec4f(pos, 1.0);
+  output.position = vec4f(pos.xy + inst.offset, pos.z, 1.0);
   output.color = inst.color;
 
   return output;
 }
 ```
 
-## 5. Drawing
+## 4. Drawing
 
 In the render loop, we simply tell the GPU how many instances to draw.
 
@@ -123,19 +97,10 @@ In the render loop, we simply tell the GPU how many instances to draw.
 passEncoder.draw(3, 10);
 ```
 
-## Summary & Next Steps
-
-In this tutorial, we learned how to use **Instancing** to draw multiple copies of a shape with a single draw call. We used a **Uniform Buffer Array** to store unique transformation matrices and colors for each instance.
-
-This approach is great for small to medium numbers of instances. however, WebGPU also provides another way to handle instanced data called **Instanced Vertex Buffers**. By setting the `stepMode` of a vertex buffer to `"instance"`, you can tell the GPU to automatically advance to the next data entry for each new instance drawn.
-
-In the next tutorial, we will explore `stepMode: "instance"` and see how it compares to our current approach!
-
 ## Full Code
 
 ```typescript
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4 } from "wgpu-matrix";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -158,12 +123,9 @@ async function init() {
   device.queue.writeBuffer(vertexBuffer, 0, vertices);
 
   // 2. Define Uniform Data (Array of Structs)
-  // Struct: { matrix: mat4x4f (64 bytes), color: vec4f (16 bytes) }
-  // Total size per instance: 80 bytes.
   const numInstances = 10;
-  const structSizeFloat = 16 + 4; // 20 floats
-  const structSizeBytes = structSizeFloat * 4; // 80 bytes
-  const uniformBufferSize = numInstances * structSizeBytes;
+  const floatsPerInstance = 8; // 32 bytes
+  const uniformBufferSize = numInstances * floatsPerInstance * 4;
 
   const uniformBuffer = device.createBuffer({
     label: "Instance Data Buffer",
@@ -172,26 +134,20 @@ async function init() {
   });
 
   // 3. Compute Data for each instance
-  const aspect = canvas.width / canvas.height;
-  const instanceData = new Float32Array(numInstances * structSizeFloat);
+  const instanceData = new Float32Array(numInstances * floatsPerInstance);
 
   for (let i = 0; i < numInstances; i++) {
-    // A. Matrix (Offset 0)
-    // Start with Identity (using translation 0,0,0) to avoid mat4.create() issues
-    const mvp = mat4.translation([0, 0, 0]);
-    mat4.scale(mvp, [1 / aspect, 1, 1], mvp);
-    const x = Math.random() * 1.6 - 0.8;
-    const y = Math.random() * 1.6 - 0.8;
-    mat4.translate(mvp, [x, y, 0], mvp);
+    const base = i * floatsPerInstance;
 
-    const base = i * structSizeFloat;
-    instanceData.set(mvp, base + 0);
+    // Color (Offset 0)
+    instanceData[base + 0] = Math.random(); // R
+    instanceData[base + 1] = Math.random(); // G
+    instanceData[base + 2] = Math.random(); // B
+    instanceData[base + 3] = 1.0; // A
 
-    // B. Color (Offset 16)
-    instanceData[base + 16] = Math.random(); // R
-    instanceData[base + 17] = Math.random(); // G
-    instanceData[base + 18] = Math.random(); // B
-    instanceData[base + 19] = 1.0; // A
+    // Offset (Offset 4)
+    instanceData[base + 4] = Math.random() * 1.6 - 0.8; // X
+    instanceData[base + 5] = Math.random() * 1.6 - 0.8; // Y
   }
 
   // Upload
@@ -202,8 +158,8 @@ async function init() {
     label: "Instancing Shader",
     code: `
       struct Instance {
-        matrix : mat4x4f,
         color : vec4f,
+        offset : vec2f,
       };
 
       struct Uniforms {
@@ -224,11 +180,12 @@ async function init() {
       ) -> VertexOutput {
         // Pick the instance data
         let inst = global.instances[instanceIdx];
-
+        
         var output : VertexOutput;
-        output.position = inst.matrix * vec4f(pos, 1.0);
+        // Apply offset
+        output.position = vec4f(pos.xy + inst.offset, pos.z, 1.0);
         output.color = inst.color;
-
+        
         return output;
       }
 
@@ -298,7 +255,7 @@ async function init() {
     // Bind Vertex Buffer (Geometry)
     passEncoder.setVertexBuffer(0, vertexBuffer);
 
-    // Bind Uniforms (Matrix + Color Array)
+    // Bind Uniforms (Instance Array)
     passEncoder.setBindGroup(0, bindGroup);
 
     // Draw 3 vertices, 10 instances!
@@ -316,3 +273,11 @@ init().catch((err) => {
   console.error(err);
 });
 ```
+
+## Summary & Next Steps
+
+In this tutorial, we learned how to use **Instancing** to draw multiple copies of a shape with a single draw call. We used a **Uniform Buffer Array** to store unique transformation matrices and colors for each instance.
+
+This approach is great for small to medium numbers of instances. however, WebGPU also provides another way to handle instanced data called **Instanced Vertex Buffers**. By setting the `stepMode` of a vertex buffer to `"instance"`, you can tell the GPU to automatically advance to the next data entry for each new instance drawn.
+
+In the next tutorial, we will explore `stepMode: "instance"` and see how it compares to our current approach!

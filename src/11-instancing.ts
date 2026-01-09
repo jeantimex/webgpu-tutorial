@@ -1,12 +1,10 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4 } from "wgpu-matrix";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
   // 1. Define Vertices (Triangle Geometry)
-  // Standard Vertex Buffer (Mesh)
   // prettier-ignore
   const vertices = new Float32Array([
      0.0,  0.1, 0.5, // Top
@@ -22,13 +20,17 @@ async function init() {
   device.queue.writeBuffer(vertexBuffer, 0, vertices);
 
   // 2. Define Uniform Data (Array of Structs)
-  // Struct: { matrix: mat4x4f (64 bytes), color: vec4f (16 bytes) }
-  // Total size per instance: 80 bytes.
-  // Note: WGSL uniform array stride must be multiple of 16. 80 is divisible by 16.
+  // Struct InstanceData {
+  //   color : vec4f (16 bytes)
+  //   offset : vec2f (8 bytes)
+  //   padding : vec2f (8 bytes) -- To align struct to 16 bytes?
+  //   Actually, array element stride in uniform buffer must be multiple of 16 bytes.
+  //   Size = 16 + 8 = 24. Next multiple of 16 is 32.
+  //   So each element takes 32 bytes.
+  // }
   const numInstances = 10;
-  const structSizeFloat = 16 + 4; // 20 floats
-  const structSizeBytes = structSizeFloat * 4; // 80 bytes
-  const uniformBufferSize = numInstances * structSizeBytes;
+  const floatsPerInstance = 8; // 32 bytes / 4 bytes per float = 8 floats
+  const uniformBufferSize = numInstances * floatsPerInstance * 4;
 
   const uniformBuffer = device.createBuffer({
     label: "Instance Data Buffer",
@@ -37,26 +39,24 @@ async function init() {
   });
 
   // 3. Compute Data for each instance
-  const aspect = canvas.width / canvas.height;
-  const instanceData = new Float32Array(numInstances * structSizeFloat);
+  const instanceData = new Float32Array(numInstances * floatsPerInstance);
 
   for (let i = 0; i < numInstances; i++) {
-    // A. Matrix (Offset 0)
-    // Start with Identity (using translation 0,0,0) to avoid mat4.create() issues
-    const mvp = mat4.translation([0, 0, 0]);
-    mat4.scale(mvp, [1 / aspect, 1, 1], mvp);
-    const x = Math.random() * 1.6 - 0.8;
-    const y = Math.random() * 1.6 - 0.8;
-    mat4.translate(mvp, [x, y, 0], mvp);
+    const base = i * floatsPerInstance;
 
-    const base = i * structSizeFloat;
-    instanceData.set(mvp, base + 0);
+    // Color (Offset 0)
+    instanceData[base + 0] = Math.random(); // R
+    instanceData[base + 1] = Math.random(); // G
+    instanceData[base + 2] = Math.random(); // B
+    instanceData[base + 3] = 1.0; // A
 
-    // B. Color (Offset 16)
-    instanceData[base + 16] = Math.random(); // R
-    instanceData[base + 17] = Math.random(); // G
-    instanceData[base + 18] = Math.random(); // B
-    instanceData[base + 19] = 1.0; // A
+    // Offset (Offset 4)
+    instanceData[base + 4] = Math.random() * 1.6 - 0.8; // X
+    instanceData[base + 5] = Math.random() * 1.6 - 0.8; // Y
+
+    // Padding (Offset 6, 7) - Unused
+    instanceData[base + 6] = 0;
+    instanceData[base + 7] = 0;
   }
 
   // Upload
@@ -67,8 +67,9 @@ async function init() {
     label: "Instancing Shader",
     code: `
       struct Instance {
-        matrix : mat4x4f,
         color : vec4f,
+        offset : vec2f,
+        // Implicit padding of 8 bytes here to reach 32-byte stride
       };
 
       struct Uniforms {
@@ -91,7 +92,8 @@ async function init() {
         let inst = global.instances[instanceIdx];
         
         var output : VertexOutput;
-        output.position = inst.matrix * vec4f(pos, 1.0);
+        // Apply offset to position
+        output.position = vec4f(pos.xy + inst.offset, pos.z, 1.0);
         output.color = inst.color;
         
         return output;
@@ -163,7 +165,7 @@ async function init() {
     // Bind Vertex Buffer (Geometry)
     passEncoder.setVertexBuffer(0, vertexBuffer);
 
-    // Bind Uniforms (Matrix + Color Array)
+    // Bind Uniforms (Instance Array)
     passEncoder.setBindGroup(0, bindGroup);
 
     // Draw 3 vertices, 10 instances!
