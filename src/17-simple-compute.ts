@@ -1,4 +1,3 @@
-import { initWebGPU } from "./utils/webgpu-util";
 
 async function init() {
   // Although we don't strictly need a canvas for compute, we might reuse helper functions

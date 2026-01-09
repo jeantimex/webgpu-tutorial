@@ -3,14 +3,22 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Enable light/dark mode support */
+  color-scheme: light dark;
+
+  /* Theme Variables using light-dark(light, dark) */
+  --bg-color: light-dark(#ffffff, #121212);
+  --text-color: light-dark(#213547, rgba(255, 255, 255, 0.87));
+  --canvas-border: light-dark(#ccc, #444);
+  --output-bg: light-dark(#f9f9f9, #1e1e1e);
+  --output-text: light-dark(#0d47a1, #a5d6ff);
+  --output-border: light-dark(#ccc, #444);
+  --shadow-color: light-dark(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
 }
 
 body {
@@ -22,26 +30,29 @@ body {
   min-width: 100vw;
   min-height: 100vh;
   overflow: hidden;
-  background-color: #121212; /* Darker background to match index */
+  
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 canvas {
   display: block;
-  /* Removed max-width: 100% to avoid unwanted shrinking if not needed */
-  /* height: auto; */
-  border: 1px solid #444;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--canvas-border);
+  box-shadow: 0 4px 6px var(--shadow-color);
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 /* For the compute shader tutorial which uses a div */
 #output {
   font-family: monospace;
   white-space: pre-wrap;
-  background: #1e1e1e;
+  background: var(--output-bg);
   padding: 2rem;
   border-radius: 8px;
-  border: 1px solid #444;
-  color: #a5d6ff;
+  border: 1px solid var(--output-border);
+  color: var(--output-text);
   font-size: 1.1rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 6px var(--shadow-color);
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
 }

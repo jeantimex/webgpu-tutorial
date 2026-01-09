@@ -5,7 +5,53 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebGPU Tutorials</title>
+    <!-- Import marked from npm -->
+    <script type="module">
+      import { marked } from "marked";
+      window.marked = marked;
+    </script>
     <style>
+      :root {
+        color-scheme: light dark;
+
+        /* Sidebar Colors */
+        --sidebar-bg: light-dark(#fff, #242424);
+        --sidebar-border: light-dark(#e0e0e0, #333);
+        --header-bg: light-dark(#f5f5f5, #2a2a2a);
+        
+        /* Text & Links */
+        --text-color: light-dark(#333, #e0e0e0);
+        --link-color: light-dark(#555, #b0b0b0);
+        --link-hover-bg: light-dark(#f0f0f0, #333);
+        --link-hover-color: light-dark(#000, #fff);
+        
+        /* Active State */
+        --link-active-bg: light-dark(#e6f7ff, #3d3d3d);
+        --link-active-color: light-dark(#1890ff, #4daafc);
+        --link-active-border: light-dark(#1890ff, #4daafc);
+        
+        /* Main Content */
+        --main-bg: light-dark(#ffffff, #121212);
+        
+        /* Controls */
+        --control-bg: light-dark(#e0e0e0, #333);
+        --control-btn-color: light-dark(#555, #aaa);
+        --control-btn-hover: light-dark(#000, #fff);
+        --control-btn-active-bg: light-dark(#1890ff, #4daafc);
+        --control-btn-active-color: #fff; /* Always white on active button */
+        
+        /* Markdown */
+        --md-bg: light-dark(#fff, #1e1e1e);
+        --md-color: light-dark(#333, #ddd);
+        --md-header: light-dark(#000, #fff);
+        --md-code-bg: light-dark(#f5f5f5, #2a2a2a);
+        --md-pre-bg: light-dark(#f5f5f5, #2a2a2a);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
         padding: 0;
@@ -14,25 +60,64 @@
         display: flex;
         height: 100vh;
         overflow: hidden;
-        color: #e0e0e0;
-        background-color: #1a1a1a;
+        color: var(--text-color);
+        background-color: var(--main-bg);
+        transition: background-color 0.3s, color 0.3s;
       }
 
       #sidebar {
         width: 300px;
-        background-color: #242424;
-        border-right: 1px solid #333;
+        background-color: var(--sidebar-bg);
+        border-right: 1px solid var(--sidebar-border);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
+        transition: margin-left 0.3s ease, transform 0.3s ease, background-color 0.3s, border-color 0.3s;
+        position: relative;
+        z-index: 20;
+      }
+
+      /* Collapsed State Logic (Desktop) */
+      /* Pull sidebar left by its width to hide it */
+      body.sidebar-collapsed #sidebar {
+        margin-left: -300px;
+      }
+
+      body.sidebar-collapsed #btn-menu {
+        display: block;
+      }
+
+      #sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom: 1px solid var(--sidebar-border);
+        background-color: var(--header-bg);
+        transition: background-color 0.3s, border-color 0.3s;
+        min-height: 60px; /* Prevent header collapse issues */
       }
 
       #sidebar h1 {
         font-size: 1.2rem;
-        padding: 1rem;
         margin: 0;
-        border-bottom: 1px solid #333;
-        background-color: #2a2a2a;
+        white-space: nowrap; /* Prevent text wrapping when resizing */
+      }
+
+      #btn-collapse {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--text-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+        flex-shrink: 0; /* Don't shrink button */
+      }
+
+      #btn-collapse:hover {
+        background-color: var(--link-hover-bg);
       }
 
       #tutorial-list {
@@ -41,39 +126,90 @@
         margin: 0;
         overflow-y: auto;
         flex: 1;
+        width: 300px; /* Force list width to stay constant */
       }
 
       #tutorial-list li {
-        border-bottom: 1px solid #333;
+        border-bottom: 1px solid var(--sidebar-border);
+        transition: border-color 0.3s;
       }
 
       #tutorial-list a {
         display: block;
         padding: 0.75rem 1rem;
         text-decoration: none;
-        color: #b0b0b0;
+        color: var(--link-color);
         font-size: 0.9rem;
-        transition:
-          background-color 0.2s,
-          color 0.2s;
+        transition: background-color 0.2s, color 0.2s;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       #tutorial-list a:hover {
-        background-color: #333;
-        color: #fff;
+        background-color: var(--link-hover-bg);
+        color: var(--link-hover-color);
       }
 
       #tutorial-list a.active {
-        background-color: #3d3d3d;
-        color: #4daafc;
-        border-left: 4px solid #4daafc;
+        background-color: var(--link-active-bg);
+        color: var(--link-active-color);
+        border-left: 4px solid var(--link-active-border);
       }
 
       #main-content {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background-color: #121212;
+        background-color: var(--main-bg);
+        position: relative;
+        transition: background-color 0.3s;
+        width: 100%;
+        overflow: hidden; /* Ensure content doesn't bleed */
+      }
+
+      /* Menu Button (Visible when sidebar collapsed) */
+      #btn-menu {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        z-index: 15;
+        background: var(--control-bg);
+        border: none;
+        color: var(--text-color);
+        font-size: 1.5rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        display: none; /* Hidden by default */
+      }
+
+      /* Responsive: Mobile (< 768px) */
+      @media (max-width: 768px) {
+        #sidebar {
+          position: absolute;
+          height: 100%;
+          box-shadow: 2px 0 8px rgba(0,0,0,0.5);
+          /* Reset margin logic for mobile */
+          margin-left: 0 !important; 
+          /* Use transform for mobile sliding */
+          transform: translateX(-100%);
+        }
+
+        /* When 'open' class is added, show it */
+        body.sidebar-open #sidebar {
+          transform: translateX(0);
+        }
+
+        /* Show menu button always on mobile if sidebar is closed */
+        #btn-menu {
+          display: block;
+        }
+        
+        body.sidebar-open #btn-menu {
+          display: none;
+        }
       }
 
       iframe {
@@ -81,124 +217,335 @@
         height: 100%;
         border: none;
       }
+
+      #markdown-content {
+        display: none;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        padding: 4rem 2rem 2rem 2rem; /* Top padding for menu/controls */
+        box-sizing: border-box;
+        background-color: var(--md-bg);
+        color: var(--md-color);
+        line-height: 1.6;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      #markdown-content h1,
+      #markdown-content h2,
+      #markdown-content h3 {
+        color: var(--md-header);
+        margin-top: 1.5em;
+        transition: color 0.3s;
+      }
+
+      #markdown-content code {
+        background-color: var(--md-code-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 4px;
+        font-family: monospace;
+        transition: background-color 0.3s;
+      }
+
+      #markdown-content pre {
+        background-color: var(--md-pre-bg);
+        padding: 1em;
+        border-radius: 8px;
+        overflow-x: auto;
+        transition: background-color 0.3s;
+      }
+
+      #markdown-content pre code {
+        background-color: transparent;
+        padding: 0;
+      }
+
+      /* Float Box */
+      #controls {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 8px; /* Spacing between groups */
+        z-index: 10;
+      }
+      
+      .control-group {
+        display: flex;
+        background-color: var(--control-bg);
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        transition: background-color 0.3s;
+      }
+
+      .control-btn {
+        background: none;
+        border: none;
+        color: var(--control-btn-color);
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        border-radius: 4px;
+        transition:
+          color 0.2s,
+          background-color 0.2s;
+      }
+
+      .control-btn:hover {
+        color: var(--control-btn-hover);
+      }
+
+      .control-btn.active {
+        background-color: var(--control-btn-active-bg);
+        color: var(--control-btn-active-color);
+      }
     </style>
   </head>
   <body>
     <div id="sidebar">
-      <h1>WebGPU Tutorials</h1>
+      <div id="sidebar-header">
+        <h1>WebGPU Tutorials</h1>
+        <button id="btn-collapse" aria-label="Close Sidebar">←</button>
+      </div>
       <ul id="tutorial-list">
         <li>
-          <a href="01-hello-webgpu.html" target="content-frame"
-            >01. Hello WebGPU</a
-          >
+          <a href="01-hello-webgpu.html">01. Hello WebGPU</a>
         </li>
         <li>
-          <a href="02-primitives.html" target="content-frame">02. Primitives</a>
+          <a href="02-primitives.html">02. Primitives</a>
         </li>
         <li>
-          <a href="03-vertex-buffer.html" target="content-frame"
-            >03. Vertex Buffer</a
-          >
+          <a href="03-vertex-buffer.html">03. Vertex Buffer</a>
         </li>
         <li>
-          <a href="04-multiple-vertex-buffers.html" target="content-frame"
+          <a href="04-multiple-vertex-buffers.html"
             >04. Multiple Vertex Buffers</a
           >
         </li>
         <li>
-          <a href="05-interleaved-vertex-buffers.html" target="content-frame"
+          <a href="05-interleaved-vertex-buffers.html"
             >05. Interleaved Vertex Buffers</a
           >
         </li>
         <li>
-          <a href="06-shader-structs.html" target="content-frame"
-            >06. Shader Structs</a
-          >
+          <a href="06-shader-structs.html">06. Shader Structs</a>
         </li>
         <li>
-          <a href="07-uniform-buffer.html" target="content-frame"
-            >07. Uniform Buffer</a
-          >
+          <a href="07-uniform-buffer.html">07. Uniform Buffer</a>
         </li>
         <li>
-          <a href="08-dynamic-uniform-buffer.html" target="content-frame"
+          <a href="08-dynamic-uniform-buffer.html"
             >08. Dynamic Uniform Buffer</a
           >
         </li>
         <li>
-          <a href="09-index-buffer.html" target="content-frame"
-            >09. Index Buffer</a
-          >
+          <a href="09-index-buffer.html">09. Index Buffer</a>
         </li>
         <li>
-          <a href="10-single-transformation.html" target="content-frame"
-            >10. Single Transformation</a
-          >
+          <a href="10-single-transformation.html">10. Single Transformation</a>
         </li>
         <li>
-          <a href="11-combined-transformations.html" target="content-frame"
+          <a href="11-combined-transformations.html"
             >11. Combined Transformations</a
           >
         </li>
         <li>
-          <a href="12-aspect-ratio.html" target="content-frame"
-            >12. Aspect Ratio</a
-          >
+          <a href="12-aspect-ratio.html">12. Aspect Ratio</a>
         </li>
         <li>
-          <a href="13-instancing.html" target="content-frame">13. Instancing</a>
+          <a href="13-instancing.html">13. Instancing</a>
         </li>
         <li>
-          <a href="14-instanced-vertex-buffer.html" target="content-frame"
-            >14. Instanced Vertex Buffer</a
-          >
+          <a href="14-instanced-vertex-buffer.html">
+            14. Instanced Vertex Buffer
+          </a>
         </li>
         <li>
-          <a href="15-switching-pipelines.html" target="content-frame"
-            >15. Switching Pipelines</a
-          >
+          <a href="15-switching-pipelines.html">15. Switching Pipelines</a>
         </li>
         <li>
-          <a href="16-switching-vertex-buffers.html" target="content-frame"
-            >16. Switching Vertex Buffers</a
-          >
+          <a href="16-switching-vertex-buffers.html">
+            16. Switching Vertex Buffers
+          </a>
         </li>
         <li>
-          <a href="17-simple-compute.html" target="content-frame"
-            >17. Simple Compute Shader</a
-          >
+          <a href="17-simple-compute.html">17. Simple Compute Shader</a>
         </li>
       </ul>
     </div>
 
     <div id="main-content">
-      <iframe name="content-frame" src="01-hello-webgpu.html"></iframe>
+      <button id="btn-menu" aria-label="Open Sidebar">☰</button>
+      
+      <div id="controls">
+        <div class="control-group">
+            <button class="control-btn" id="btn-theme">🌙</button>
+        </div>
+        <div class="control-group">
+            <button class="control-btn active" id="btn-tutorial">Tutorial</button>
+            <button class="control-btn" id="btn-demo">Demo</button>
+        </div>
+      </div>
+
+      <iframe id="content-frame" src="01-hello-webgpu.html"></iframe>
+      <div id="markdown-content"></div>
     </div>
 
-    <script>
-      const links = document.querySelectorAll("#tutorial-list a");
-      const iframe = document.querySelector("iframe");
+    <script type="module">
+      import { marked } from "marked";
 
-      function setActiveLink(href) {
+      const body = document.body;
+      const links = document.querySelectorAll("#tutorial-list a");
+      const iframe = document.getElementById("content-frame");
+      const markdownDiv = document.getElementById("markdown-content");
+      const btnTutorial = document.getElementById("btn-tutorial");
+      const btnDemo = document.getElementById("btn-demo");
+      const btnTheme = document.getElementById("btn-theme");
+      const btnCollapse = document.getElementById("btn-collapse");
+      const btnMenu = document.getElementById("btn-menu");
+
+      let currentMode = "tutorial"; 
+      let currentPage = "01-hello-webgpu.html";
+      
+      // --- Sidebar Logic ---
+      
+      function checkResponsive() {
+        if (window.innerWidth <= 768) {
+            // Mobile: Sidebar closed by default
+            body.classList.remove("sidebar-collapsed"); 
+            body.classList.remove("sidebar-open"); 
+        } else {
+            // Desktop: Sidebar open by default
+            body.classList.remove("sidebar-open");
+        }
+      }
+      
+      // Handle resize to reset invalid states
+      window.addEventListener("resize", checkResponsive);
+      
+      btnCollapse.addEventListener("click", () => {
+        if (window.innerWidth <= 768) {
+            body.classList.remove("sidebar-open");
+        } else {
+            body.classList.add("sidebar-collapsed");
+        }
+      });
+      
+      btnMenu.addEventListener("click", () => {
+        if (window.innerWidth <= 768) {
+            body.classList.add("sidebar-open");
+        } else {
+            body.classList.remove("sidebar-collapsed");
+        }
+      });
+
+      // --- Theme Handling ---
+      function getPreferredTheme() {
+        const saved = localStorage.getItem("theme");
+        if (saved) return saved;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+
+      let currentTheme = getPreferredTheme();
+      
+      function applyTheme(theme) {
+        document.documentElement.style.colorScheme = theme;
+        btnTheme.textContent = theme === "dark" ? "🌙" : "☀️";
+        try {
+            if (iframe.contentDocument && iframe.contentDocument.documentElement) {
+                iframe.contentDocument.documentElement.style.colorScheme = theme;
+            }
+        } catch (e) {}
+      }
+
+      function toggleTheme() {
+        currentTheme = currentTheme === "dark" ? "light" : "dark";
+        localStorage.setItem("theme", currentTheme);
+        applyTheme(currentTheme);
+      }
+      
+      btnTheme.addEventListener("click", toggleTheme);
+      applyTheme(currentTheme);
+      iframe.addEventListener("load", () => {
+        applyTheme(currentTheme);
+      });
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+        if (!localStorage.getItem("theme")) {
+            currentTheme = e.matches ? "dark" : "light";
+            applyTheme(currentTheme);
+        }
+      });
+
+      // --- Navigation ---
+      function loadContent() {
         links.forEach((link) => {
-          if (link.getAttribute("href") === href) {
+          if (link.getAttribute("href") === currentPage) {
             link.classList.add("active");
           } else {
             link.classList.remove("active");
           }
         });
+
+        if (currentMode === "demo") {
+          iframe.style.display = "block";
+          markdownDiv.style.display = "none";
+          btnDemo.classList.add("active");
+          btnTutorial.classList.remove("active");
+          const currentSrc = iframe.getAttribute("src");
+          if (currentSrc !== currentPage) {
+            iframe.src = currentPage;
+          }
+        } else {
+          iframe.style.display = "none";
+          markdownDiv.style.display = "block";
+          btnTutorial.classList.add("active");
+          btnDemo.classList.remove("active");
+          const mdFile = currentPage.replace(".html", ".md");
+          fetch(mdFile)
+            .then((res) => {
+              if (!res.ok) throw new Error("Markdown not found");
+              return res.text();
+            })
+            .then((text) => {
+              markdownDiv.innerHTML = marked.parse(text);
+            })
+            .catch((err) => {
+              markdownDiv.innerHTML = `<h1>Error</h1><p>${err.message}</p>`;
+            });
+        }
       }
 
-      // Set initial active link
-      const initialSrc = iframe.getAttribute("src");
-      setActiveLink(initialSrc);
+      btnDemo.addEventListener("click", () => {
+        if (currentMode !== "demo") {
+          currentMode = "demo";
+          loadContent();
+        }
+      });
 
-      // Update active link on click
+      btnTutorial.addEventListener("click", () => {
+        if (currentMode !== "tutorial") {
+          currentMode = "tutorial";
+          loadContent();
+        }
+      });
+
       links.forEach((link) => {
         link.addEventListener("click", (e) => {
-          setActiveLink(link.getAttribute("href"));
+          e.preventDefault();
+          const href = link.getAttribute("href");
+          if (href !== currentPage) {
+            currentPage = href;
+            loadContent();
+          }
+          // On mobile, close sidebar after clicking
+          if (window.innerWidth <= 768) {
+            body.classList.remove("sidebar-open");
+          }
         });
       });
+
+      loadContent();
     </script>
   </body>
 </html>

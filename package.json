@@ -20,6 +20,7 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "marked": "^17.0.1",
     "wgpu-matrix": "^3.4.0"
   }
 }
