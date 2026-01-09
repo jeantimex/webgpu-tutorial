@@ -254,11 +254,46 @@
         border-radius: 8px;
         overflow-x: auto;
         transition: background-color 0.3s;
+        margin: 0; /* Remove margin from pre inside container */
       }
 
       #markdown-content pre code {
         background-color: transparent;
         padding: 0;
+      }
+
+      /* Code Block Container for Copy Button */
+      .code-container {
+        position: relative;
+        margin: 1.5em 0;
+        background-color: var(--md-pre-bg);
+        border-radius: 8px;
+      }
+
+      .copy-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .copy-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        opacity: 1;
+      }
+
+      .copy-btn .material-symbols-outlined {
+        font-size: 18px;
       }
 
       /* Float Box */
@@ -539,6 +574,50 @@
         }
       });
 
+      // --- Helper: Copy Button ---
+      function addCopyButtons() {
+        const preElements = markdownDiv.querySelectorAll("pre");
+        preElements.forEach((pre) => {
+            // Check if button already exists (to prevent duplicates on re-render)
+            if (pre.parentNode.classList.contains("code-container")) return;
+
+            // Wrap pre in container
+            const container = document.createElement("div");
+            container.className = "code-container";
+            pre.parentNode.insertBefore(container, pre);
+            container.appendChild(pre);
+
+            // Create button
+            const btn = document.createElement("button");
+            btn.className = "copy-btn";
+            btn.setAttribute("aria-label", "Copy code");
+            
+            // Icon
+            const icon = document.createElement("span");
+            icon.className = "material-symbols-outlined";
+            icon.textContent = "content_copy";
+            btn.appendChild(icon);
+
+            // Event Listener
+            btn.addEventListener("click", async () => {
+                try {
+                    const code = pre.querySelector("code").innerText;
+                    await navigator.clipboard.writeText(code);
+                    
+                    // Feedback
+                    icon.textContent = "check";
+                    setTimeout(() => {
+                        icon.textContent = "content_copy";
+                    }, 2000);
+                } catch (err) {
+                    console.error("Failed to copy", err);
+                }
+            });
+
+            container.appendChild(btn);
+        });
+      }
+
       // --- Navigation ---
       function loadContent() {
         links.forEach((link) => {
@@ -578,6 +657,7 @@
             })
             .then((text) => {
               markdownDiv.innerHTML = marked.parse(text);
+              addCopyButtons(); // Inject copy buttons after render
             })
             .catch((err) => {
               markdownDiv.innerHTML = `<h1>Error</h1><p>${err.message}</p>`;
