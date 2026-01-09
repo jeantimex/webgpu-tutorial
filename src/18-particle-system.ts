@@ -161,13 +161,13 @@ async function init() {
 
     for (let i = 0; i < count; i++) {
       const offset = i * floatPerParticle;
-      // Pos
+      // Position (x, y)
       particleData[offset + 0] = (Math.random() - 0.5) * 1.5;
       particleData[offset + 1] = (Math.random() - 0.5) * 1.5;
-      // Vel
+      // Velocity (vx, vy)
       particleData[offset + 2] = (Math.random() - 0.5) * 0.02;
       particleData[offset + 3] = (Math.random() - 0.5) * 0.02;
-      // Color (Random RGB)
+      // Color (r, g, b)
       particleData[offset + 4] = Math.random();
       particleData[offset + 5] = Math.random();
       particleData[offset + 6] = Math.random();

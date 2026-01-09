@@ -9,6 +9,12 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     />
+    <link
+      id="highlight-theme"
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <!-- Import marked from npm -->
     <script type="module">
       import { marked } from "marked";
@@ -300,6 +306,12 @@
       #markdown-content pre code {
         background-color: transparent;
         padding: 0;
+      }
+
+      /* Highlight.js override */
+      .hljs {
+        background: transparent !important;
+        padding: 0 !important;
       }
 
       /* Code Block Container for Copy Button */
@@ -650,6 +662,14 @@
       function applyTheme(theme) {
         document.documentElement.style.colorScheme = theme;
         themeIcon.textContent = theme === "dark" ? "dark_mode" : "light_mode";
+
+        // Update highlight.js theme
+        const highlightTheme = document.getElementById("highlight-theme");
+        if (highlightTheme) {
+          const themeName = theme === "dark" ? "atom-one-dark" : "atom-one-light";
+          highlightTheme.href = `https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${themeName}.min.css`;
+        }
+
         try {
           if (
             iframe.contentDocument &&
@@ -763,6 +783,9 @@
             })
             .then((text) => {
               markdownDiv.innerHTML = marked.parse(text);
+              markdownDiv.querySelectorAll("pre code").forEach((block) => {
+                hljs.highlightElement(block);
+              });
               addCopyButtons(); // Inject copy buttons after render
             })
             .catch((err) => {
