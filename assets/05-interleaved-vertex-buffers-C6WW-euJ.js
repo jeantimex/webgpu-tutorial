@@ -1,4 +1,4 @@
-import"./common-BNB2xREb.js";import{i as p}from"./webgpu-util-BApOR-AX.js";async function v(){const r=document.querySelector("#webgpu-canvas"),{device:e,context:i,canvasFormat:s}=await p(r),o=new Float32Array([0,.5,1,0,0,-.5,-.5,0,1,0,.5,-.5,0,0,1]),n=e.createBuffer({label:"Interleaved Vertex Buffer",size:o.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(n,0,o);const a=e.createShaderModule({label:"Interleaved Buffer Shader",code:`
+import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css               */import{i as p}from"./webgpu-util-BApOR-AX.js";async function v(){const r=document.querySelector("#webgpu-canvas"),{device:e,context:i,canvasFormat:s}=await p(r),o=new Float32Array([0,.5,1,0,0,-.5,-.5,0,1,0,.5,-.5,0,0,1]),n=e.createBuffer({label:"Interleaved Vertex Buffer",size:o.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(n,0,o);const a=e.createShaderModule({label:"Interleaved Buffer Shader",code:`
       struct VertexOutput {
         @builtin(position) position : vec4f,
         @location(0) color : vec3f,

@@ -1,4 +1,4 @@
-import"./common-BNB2xREb.js";import{i as d}from"./webgpu-util-BApOR-AX.js";async function m(){const r=document.querySelector("#webgpu-canvas"),{device:e,context:u,canvasFormat:c}=await d(r),o=new Float32Array([0,.5,1,0,0,-.5,-.5,0,1,0,.5,-.5,0,0,1]),n=e.createBuffer({label:"Interleaved Vertex Buffer",size:o.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(n,0,o);const a=e.createShaderModule({label:"Shader Structs",code:`
+import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css               */import{i as d}from"./webgpu-util-BApOR-AX.js";async function m(){const r=document.querySelector("#webgpu-canvas"),{device:e,context:u,canvasFormat:c}=await d(r),o=new Float32Array([0,.5,1,0,0,-.5,-.5,0,1,0,.5,-.5,0,0,1]),n=e.createBuffer({label:"Interleaved Vertex Buffer",size:o.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(n,0,o);const a=e.createShaderModule({label:"Shader Structs",code:`
       // Define the structure of the input data coming from the Vertex Buffer
       struct VertexInput {
         @location(0) position : vec2f,

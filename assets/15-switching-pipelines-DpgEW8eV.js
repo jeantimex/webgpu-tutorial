@@ -1,4 +1,4 @@
-import"./common-BNB2xREb.js";import{i as m}from"./webgpu-util-BApOR-AX.js";async function g(){const o=document.querySelector("#webgpu-canvas"),{device:e,context:c,canvasFormat:n}=await m(o),a=new Float32Array([-.5,.5,0,-.9,-.5,0,-.1,-.5,0,.5,.5,0,.1,-.5,0,.9,-.5,0]),i=e.createBuffer({label:"Vertex Buffer",size:a.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(i,0,a);const r=e.createShaderModule({label:"Multi-Material Shader",code:`
+import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css               */import{i as m}from"./webgpu-util-BApOR-AX.js";async function g(){const o=document.querySelector("#webgpu-canvas"),{device:e,context:c,canvasFormat:n}=await m(o),a=new Float32Array([-.5,.5,0,-.9,-.5,0,-.1,-.5,0,.5,.5,0,.1,-.5,0,.9,-.5,0]),i=e.createBuffer({label:"Vertex Buffer",size:a.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});e.queue.writeBuffer(i,0,a);const r=e.createShaderModule({label:"Multi-Material Shader",code:`
       struct VertexOutput {
         @builtin(position) position : vec4f,
         @location(0) localPos : vec3f,
