@@ -1,10 +1,10 @@
 import { initWebGPU } from "./utils/webgpu-util";
 
-async function init() {
+async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  const shaderModule = device.createShaderModule({
+  const shaderModule: GPUShaderModule = device.createShaderModule({
     label: "Primitives Shader",
     code: `
       @vertex
@@ -35,7 +35,7 @@ async function init() {
     "triangle-strip",
   ];
 
-  const pipelines = topologies.map((topology) => {
+  const pipelines: GPURenderPipeline[] = topologies.map((topology) => {
     const primitive: GPUPrimitiveState = {
       topology,
     };
@@ -60,9 +60,9 @@ async function init() {
     });
   });
 
-  function render() {
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context!.getCurrentTexture().createView();
+  function render(): void {
+    const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
+    const textureView: GPUTextureView = context!.getCurrentTexture().createView();
 
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
@@ -75,7 +75,7 @@ async function init() {
       ],
     };
 
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
     // Grid layout: 3 columns, 2 rows
     const cols = 3;
@@ -103,6 +103,6 @@ async function init() {
   render();
 }
 
-init().catch((err) => {
+init().catch((err: Error) => {
   console.error(err);
 });
