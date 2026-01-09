@@ -250,11 +250,46 @@
         border-radius: 8px;
         overflow-x: auto;
         transition: background-color 0.3s;
+        margin: 0; /* Remove margin from pre inside container */
       }
 
       #markdown-content pre code {
         background-color: transparent;
         padding: 0;
+      }
+
+      /* Code Block Container for Copy Button */
+      .code-container {
+        position: relative;
+        margin: 1.5em 0;
+        background-color: var(--md-pre-bg);
+        border-radius: 8px;
+      }
+
+      .copy-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .copy-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        opacity: 1;
+      }
+
+      .copy-btn .material-symbols-outlined {
+        font-size: 18px;
       }
 
       /* Float Box */
@@ -352,7 +387,7 @@
         vertical-align: middle;
       }
     </style>
-    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-C-6SVM8P.js"></script>
+    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-BznzQlvN.js"></script>
     <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/modulepreload-polyfill-B5Qt9EMX.js">
   </head>
   <body>
@@ -444,6 +479,11 @@
         <button class="theme-btn" id="btn-theme" aria-label="Toggle Theme">
             <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
         </button>
+        <a href="https://github.com/jeantimex/webgpu-tutorial" target="_blank" class="theme-btn" aria-label="View on GitHub">
+          <svg height="22" viewBox="0 0 16 16" width="22" style="fill: currentColor;">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+        </a>
       </div>
 
       <iframe id="content-frame" src="01-hello-webgpu.html"></iframe>
