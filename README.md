@@ -22,6 +22,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 14 | [Instanced Vertex Buffer](14-instanced-vertex-buffer.md) | Learn to use `stepMode: "instance"` to pass per-instance data via vertex buffers. |
 | 15 | [Switching Pipelines](15-switching-pipelines.md) | Learn how to switch render pipelines to draw objects with different shaders (Solid vs. Gradient). |
 | 16 | [Switching Vertex Buffers](16-switching-vertex-buffers.md) | Learn how to reuse a pipeline while switching geometry data. |
+| 17 | [Simple Compute Shader](17-simple-compute.md) | Learn how to use Compute Shaders for GPGPU tasks by multiplying arrays. |
 
 ## Getting Started
 
