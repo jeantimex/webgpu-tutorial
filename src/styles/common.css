@@ -15,16 +15,33 @@
 
 body {
   margin: 0;
+  padding: 0;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  min-width: 320px;
+  min-width: 100vw;
   min-height: 100vh;
+  overflow: hidden;
+  background-color: #121212; /* Darker background to match index */
 }
 
 canvas {
   display: block;
-  max-width: 100%;
-  height: auto;
+  /* Removed max-width: 100% to avoid unwanted shrinking if not needed */
+  /* height: auto; */
   border: 1px solid #444;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* For the compute shader tutorial which uses a div */
+#output {
+  font-family: monospace;
+  white-space: pre-wrap;
+  background: #1e1e1e;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  color: #a5d6ff;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
