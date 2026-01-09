@@ -37,6 +37,15 @@ passEncoder.draw(6);
 
 This is much more efficient than recreating pipelines or even switching pipelines, as binding a buffer is a very lightweight operation for the GPU.
 
+## 4. Trade-offs: Switching Buffers vs. Instancing
+
+While switching vertex buffers is simple and flexible, it has one major drawback compared to **Instancing** (Tutorial 12/13):
+
+- **Switching Buffers**: Requires a **separate draw call** for every object (`draw(3)`, `draw(6)`). If you have 10,000 different objects, that's 10,000 commands the CPU has to send to the GPU. This can become a "CPU bottleneck."
+- **Instancing**: Draws many copies in **one single draw call** (`draw(3, 10000)`). This is significantly faster for the CPU.
+
+**When to switch buffers?** Use this technique when your objects have **different geometry** (e.g., a car and a tree) but share the same material properties. If you are drawing 100 identical trees, use Instancing!
+
 ## Full Code
 
 ```typescript
