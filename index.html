@@ -5,7 +5,10 @@
     <link rel="icon" type="image/svg+xml" href="/webgpu.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebGPU Tutorials</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
     <!-- Import marked from npm -->
     <script type="module">
       import { marked } from "marked";
@@ -19,28 +22,28 @@
         --sidebar-bg: light-dark(#fff, #242424);
         --sidebar-border: light-dark(#e0e0e0, #333);
         --header-bg: light-dark(#f5f5f5, #2a2a2a);
-        
+
         /* Text & Links */
         --text-color: light-dark(#333, #e0e0e0);
         --link-color: light-dark(#555, #b0b0b0);
         --link-hover-bg: light-dark(#f0f0f0, #333);
         --link-hover-color: light-dark(#000, #fff);
-        
+
         /* Active State */
         --link-active-bg: light-dark(#e6f7ff, #3d3d3d);
         --link-active-color: light-dark(#1890ff, #4daafc);
         --link-active-border: light-dark(#1890ff, #4daafc);
-        
+
         /* Main Content */
         --main-bg: light-dark(#ffffff, #121212);
-        
+
         /* Controls */
         --control-bg: light-dark(#e0e0e0, #333);
         --control-btn-color: light-dark(#555, #aaa);
         --control-btn-hover: light-dark(#000, #fff);
         --control-btn-active-bg: light-dark(#fff, #555);
         --control-btn-active-color: light-dark(#000, #fff);
-        
+
         /* Markdown */
         --md-bg: light-dark(#fff, #1e1e1e);
         --md-color: light-dark(#333, #ddd);
@@ -56,14 +59,16 @@
       body {
         margin: 0;
         padding: 0;
-        font-family: "Google Sans Flex", "Google Sans", "Helvetica Neue",
-          sans-serif;
+        font-family:
+          "Google Sans Flex", "Google Sans", "Helvetica Neue", sans-serif;
         display: flex;
         height: 100vh;
         overflow: hidden;
         color: var(--text-color);
         background-color: var(--main-bg);
-        transition: background-color 0.3s, color 0.3s;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
       }
 
       #sidebar {
@@ -73,7 +78,11 @@
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        transition: margin-left 0.3s ease, transform 0.3s ease, background-color 0.3s, border-color 0.3s;
+        transition:
+          margin-left 0.3s ease,
+          transform 0.3s ease,
+          background-color 0.3s,
+          border-color 0.3s;
         position: relative;
         z-index: 20;
       }
@@ -95,7 +104,9 @@
         padding: 1rem;
         border-bottom: 1px solid var(--sidebar-border);
         background-color: var(--header-bg);
-        transition: background-color 0.3s, border-color 0.3s;
+        transition:
+          background-color 0.3s,
+          border-color 0.3s;
         min-height: 60px; /* Prevent header collapse issues */
       }
 
@@ -141,7 +152,9 @@
         text-decoration: none;
         color: var(--link-color);
         font-size: 0.9rem;
-        transition: background-color 0.2s, color 0.2s;
+        transition:
+          background-color 0.2s,
+          color 0.2s;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -164,7 +177,9 @@
         background-color: var(--header-bg);
         font-size: 0.8rem;
         text-align: center;
-        transition: background-color 0.3s, border-color 0.3s;
+        transition:
+          background-color 0.3s,
+          border-color 0.3s;
       }
 
       #sidebar-footer p {
@@ -205,7 +220,7 @@
         padding: 4px 10px;
         border-radius: 4px;
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         display: none; /* Hidden by default */
       }
 
@@ -214,9 +229,9 @@
         #sidebar {
           position: absolute;
           height: 100%;
-          box-shadow: 2px 0 8px rgba(0,0,0,0.5);
+          box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
           /* Reset margin logic for mobile */
-          margin-left: 0 !important; 
+          margin-left: 0 !important;
           /* Use transform for mobile sliding */
           transform: translateX(-100%);
         }
@@ -230,7 +245,7 @@
         #btn-menu {
           display: block;
         }
-        
+
         body.sidebar-open #btn-menu {
           display: none;
         }
@@ -252,7 +267,9 @@
         background-color: var(--md-bg);
         color: var(--md-color);
         line-height: 1.6;
-        transition: background-color 0.3s, color 0.3s;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
       }
 
       #markdown-content h1,
@@ -329,7 +346,7 @@
         gap: 12px; /* Spacing between groups */
         z-index: 10;
       }
-      
+
       /* Segmented Control (Tutorial/Demo) */
       .segmented-control {
         display: flex;
@@ -410,7 +427,11 @@
 
       /* Material Symbols Sizing */
       .material-symbols-outlined {
-        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
         vertical-align: middle;
       }
     </style>
@@ -418,8 +439,12 @@
   <body>
     <div id="sidebar">
       <div id="sidebar-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <img src="/webgpu.svg" alt="WebGPU Logo" style="width: 24px; height: 24px;" />
+        <div style="display: flex; align-items: center; gap: 10px">
+          <img
+            src="/webgpu.svg"
+            alt="WebGPU Logo"
+            style="width: 24px; height: 24px"
+          />
           <h1>WebGPU Tutorials</h1>
         </div>
         <button id="btn-collapse" aria-label="Close Sidebar">
@@ -490,11 +515,30 @@
         <li>
           <a href="17-simple-compute.html">17. Simple Compute Shader</a>
         </li>
+        <li>
+          <a href="18-particle-system.html">18. Particle System</a>
+        </li>
       </ul>
       <div id="sidebar-footer">
-        <a href="https://github.com/jeantimex" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-          <svg height="16" viewBox="0 0 16 16" width="16" style="fill: currentColor;">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+        <a
+          href="https://github.com/jeantimex"
+          target="_blank"
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          "
+        >
+          <svg
+            height="16"
+            viewBox="0 0 16 16"
+            width="16"
+            style="fill: currentColor"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            ></path>
           </svg>
           <span>jeantimex</span>
         </a>
@@ -505,19 +549,35 @@
       <button id="btn-menu" aria-label="Open Sidebar">
         <span class="material-symbols-outlined">menu</span>
       </button>
-      
+
       <div id="controls">
         <div class="segmented-control mode-tutorial">
-            <div class="selection-slider"></div>
-            <button class="segmented-btn active" id="btn-tutorial">Tutorial</button>
-            <button class="segmented-btn" id="btn-demo">Demo</button>
+          <div class="selection-slider"></div>
+          <button class="segmented-btn active" id="btn-tutorial">
+            Tutorial
+          </button>
+          <button class="segmented-btn" id="btn-demo">Demo</button>
         </div>
         <button class="theme-btn" id="btn-theme" aria-label="Toggle Theme">
-            <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+          <span class="material-symbols-outlined" id="theme-icon"
+            >dark_mode</span
+          >
         </button>
-        <a href="https://github.com/jeantimex/webgpu-tutorial" target="_blank" class="theme-btn" aria-label="View on GitHub">
-          <svg height="22" viewBox="0 0 16 16" width="22" style="fill: currentColor;">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+        <a
+          href="https://github.com/jeantimex/webgpu-tutorial"
+          target="_blank"
+          class="theme-btn"
+          aria-label="View on GitHub"
+        >
+          <svg
+            height="22"
+            viewBox="0 0 16 16"
+            width="22"
+            style="fill: currentColor"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            ></path>
           </svg>
         </a>
       </div>
@@ -541,38 +601,38 @@
       const btnCollapse = document.getElementById("btn-collapse");
       const btnMenu = document.getElementById("btn-menu");
 
-      let currentMode = "tutorial"; 
+      let currentMode = "tutorial";
       let currentPage = "01-hello-webgpu.html";
-      
+
       // --- Sidebar Logic ---
-      
+
       function checkResponsive() {
         if (window.innerWidth <= 768) {
-            // Mobile: Sidebar closed by default
-            body.classList.remove("sidebar-collapsed"); 
-            body.classList.remove("sidebar-open"); 
+          // Mobile: Sidebar closed by default
+          body.classList.remove("sidebar-collapsed");
+          body.classList.remove("sidebar-open");
         } else {
-            // Desktop: Sidebar open by default
-            body.classList.remove("sidebar-open");
+          // Desktop: Sidebar open by default
+          body.classList.remove("sidebar-open");
         }
       }
-      
+
       // Handle resize to reset invalid states
       window.addEventListener("resize", checkResponsive);
-      
+
       btnCollapse.addEventListener("click", () => {
         if (window.innerWidth <= 768) {
-            body.classList.remove("sidebar-open");
+          body.classList.remove("sidebar-open");
         } else {
-            body.classList.add("sidebar-collapsed");
+          body.classList.add("sidebar-collapsed");
         }
       });
-      
+
       btnMenu.addEventListener("click", () => {
         if (window.innerWidth <= 768) {
-            body.classList.add("sidebar-open");
+          body.classList.add("sidebar-open");
         } else {
-            body.classList.remove("sidebar-collapsed");
+          body.classList.remove("sidebar-collapsed");
         }
       });
 
@@ -580,18 +640,23 @@
       function getPreferredTheme() {
         const saved = localStorage.getItem("theme");
         if (saved) return saved;
-        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        return window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
       }
 
       let currentTheme = getPreferredTheme();
-      
+
       function applyTheme(theme) {
         document.documentElement.style.colorScheme = theme;
         themeIcon.textContent = theme === "dark" ? "dark_mode" : "light_mode";
         try {
-            if (iframe.contentDocument && iframe.contentDocument.documentElement) {
-                iframe.contentDocument.documentElement.style.colorScheme = theme;
-            }
+          if (
+            iframe.contentDocument &&
+            iframe.contentDocument.documentElement
+          ) {
+            iframe.contentDocument.documentElement.style.colorScheme = theme;
+          }
         } catch (e) {}
       }
 
@@ -600,60 +665,62 @@
         localStorage.setItem("theme", currentTheme);
         applyTheme(currentTheme);
       }
-      
+
       btnTheme.addEventListener("click", toggleTheme);
       applyTheme(currentTheme);
       iframe.addEventListener("load", () => {
         applyTheme(currentTheme);
       });
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
-        if (!localStorage.getItem("theme")) {
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (!localStorage.getItem("theme")) {
             currentTheme = e.matches ? "dark" : "light";
             applyTheme(currentTheme);
-        }
-      });
+          }
+        });
 
       // --- Helper: Copy Button ---
       function addCopyButtons() {
         const preElements = markdownDiv.querySelectorAll("pre");
         preElements.forEach((pre) => {
-            // Check if button already exists (to prevent duplicates on re-render)
-            if (pre.parentNode.classList.contains("code-container")) return;
+          // Check if button already exists (to prevent duplicates on re-render)
+          if (pre.parentNode.classList.contains("code-container")) return;
 
-            // Wrap pre in container
-            const container = document.createElement("div");
-            container.className = "code-container";
-            pre.parentNode.insertBefore(container, pre);
-            container.appendChild(pre);
+          // Wrap pre in container
+          const container = document.createElement("div");
+          container.className = "code-container";
+          pre.parentNode.insertBefore(container, pre);
+          container.appendChild(pre);
 
-            // Create button
-            const btn = document.createElement("button");
-            btn.className = "copy-btn";
-            btn.setAttribute("aria-label", "Copy code");
-            
-            // Icon
-            const icon = document.createElement("span");
-            icon.className = "material-symbols-outlined";
-            icon.textContent = "content_copy";
-            btn.appendChild(icon);
+          // Create button
+          const btn = document.createElement("button");
+          btn.className = "copy-btn";
+          btn.setAttribute("aria-label", "Copy code");
 
-            // Event Listener
-            btn.addEventListener("click", async () => {
-                try {
-                    const code = pre.querySelector("code").innerText;
-                    await navigator.clipboard.writeText(code);
-                    
-                    // Feedback
-                    icon.textContent = "check";
-                    setTimeout(() => {
-                        icon.textContent = "content_copy";
-                    }, 2000);
-                } catch (err) {
-                    console.error("Failed to copy", err);
-                }
-            });
+          // Icon
+          const icon = document.createElement("span");
+          icon.className = "material-symbols-outlined";
+          icon.textContent = "content_copy";
+          btn.appendChild(icon);
 
-            container.appendChild(btn);
+          // Event Listener
+          btn.addEventListener("click", async () => {
+            try {
+              const code = pre.querySelector("code").innerText;
+              await navigator.clipboard.writeText(code);
+
+              // Feedback
+              icon.textContent = "check";
+              setTimeout(() => {
+                icon.textContent = "content_copy";
+              }, 2000);
+            } catch (err) {
+              console.error("Failed to copy", err);
+            }
+          });
+
+          container.appendChild(btn);
         });
       }
 
@@ -671,7 +738,7 @@
         if (currentMode === "demo") {
           segControl.classList.add("mode-demo");
           segControl.classList.remove("mode-tutorial");
-          
+
           iframe.style.display = "block";
           markdownDiv.style.display = "none";
           btnDemo.classList.add("active");

@@ -30,17 +30,21 @@ body {
   min-width: 100vw;
   min-height: 100vh;
   overflow: hidden;
-  
+
   background-color: var(--bg-color);
   color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
 }
 
 canvas {
   display: block;
   border: 1px solid var(--canvas-border);
   box-shadow: 0 4px 6px var(--shadow-color);
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
 /* For the compute shader tutorial which uses a div */
@@ -54,5 +58,10 @@ canvas {
   color: var(--output-text);
   font-size: 1.1rem;
   box-shadow: 0 4px 6px var(--shadow-color);
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+  transition:
+    background-color 0.3s,
+    color 0.3s,
+    border-color 0.3s;
+  max-width: 600px;
+  word-break: break-all;
 }
