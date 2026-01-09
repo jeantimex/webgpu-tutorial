@@ -15,6 +15,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 - [09. Combined Transformations](09-combined-transformations.md) - Learn how to chain Translation, Rotation, and Scaling for complex movements.
 - [10. Aspect Ratio](10-aspect-ratio.md) - Learn how to correct geometric distortion caused by rectangular canvases.
 - [11. Instancing](11-instancing.md) - Learn how to draw multiple copies of the same geometry efficiently using storage buffers and instanced drawing.
+- [12. Instanced Vertex Buffer](12-instanced-vertex-buffer.md) - Learn to use `stepMode: "instance"` to pass per-instance data via vertex buffers.
 
 ## Getting Started
 
