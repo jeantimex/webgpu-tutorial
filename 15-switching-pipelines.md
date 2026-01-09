@@ -1,8 +1,15 @@
 # 15. Switching Pipelines
 
-In complex applications, not everything looks the same. You might have some objects that are solid colors, some that are textured, and some that are wireframes.
+In previous tutorials, we focused on drawing objects that all share the same shader logic (e.g., all solid colors). But in a real application, you often need to render different types of objects: some solid, some textured, some glowing, some wireframe.
 
-In WebGPU, the **Render Pipeline** defines exactly "how to draw". If you want to change how something is drawn (e.g., use a different pixel shader), you must switch pipelines.
+In this tutorial, we will learn how to **Switch Pipelines** within a single render pass to change _how_ objects are drawn.
+
+**Key Learning Points:**
+
+- Creating multiple `GPURenderPipeline` objects.
+- Using different Entry Points in the same shader module.
+- Switching state efficiently with `setPipeline`.
+- Understanding when to switch pipelines vs. updating uniforms.
 
 ## 1. Defining Multiple Pipelines
 

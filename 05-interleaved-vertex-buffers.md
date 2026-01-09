@@ -1,8 +1,15 @@
 # 05. Interleaved Vertex Buffers
 
-In the previous tutorial, we used two separate buffers for position and color. In this tutorial, we will use **Interleaved Vertex Buffers**.
+In the last tutorial, we used two separate buffers for position and color data. While flexible, this isn't always the most efficient way to store data in memory.
 
-This means we pack all the attributes for a single vertex (position, color, normal, UVs, etc.) together in memory, one after another.
+In this tutorial, we will learn how to use **Interleaved Vertex Buffers**. This involves packing all attributes for a single vertex (position, color, etc.) into a single continuous block of memory. This is the standard approach for most 3D engines due to better cache performance.
+
+**Key Learning Points:**
+
+- Understanding the concept of "Interleaving" data.
+- Calculating `arrayStride` for complex vertex structures.
+- Using `offset` to map attributes within a single buffer stride.
+- Why interleaving improves GPU cache locality.
 
 ## 1. The Data Structure
 

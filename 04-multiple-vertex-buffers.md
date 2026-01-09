@@ -1,6 +1,15 @@
 # 04. Multiple Vertex Buffers
 
-In this tutorial, we will learn how to feed data to the vertex shader using **multiple vertex buffers**. We will separate our position data and color data into two different buffers and combine them in the render pipeline.
+In the last tutorial, we learned how to use a single vertex buffer to pass position data to the GPU. But what if we want to pass more information, like colors, normals, or texture coordinates?
+
+In this tutorial, we will learn how to use **Multiple Vertex Buffers** to separate different data streams (e.g., one buffer for positions, one for colors) and combine them in the render pipeline.
+
+**Key Learning Points:**
+
+- Creating multiple `GPUBuffer` objects for different attributes.
+- Defining multiple entries in the `buffers` array of `GPURenderPipeline`.
+- Matching separate buffers to shader `@location` slots.
+- Understanding the flexibility of separated data streams.
 
 ## 1. Separate Data Arrays
 

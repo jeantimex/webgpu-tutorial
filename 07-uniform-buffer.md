@@ -1,8 +1,16 @@
 # 07. Uniform Buffer
 
-In previous tutorials, we passed data per-vertex. But what if we want to pass data that is **constant** for the entire draw call, like a global color, a transformation matrix, or light settings?
+In the last tutorial, we organized our shader code using structs. Up until now, we've only passed data that changes _per vertex_ (via Vertex Buffers). But what if we want to pass data that remains **constant** for the entire object, like a global color, a transformation matrix, or light settings?
 
-We use a **Uniform Buffer**.
+In this tutorial, we will learn how to use **Uniform Buffers** and **Bind Groups** to pass global data to our shaders.
+
+**Key Learning Points:**
+
+- Difference between Attributes (`@vertex`) and Uniforms (`@group`).
+- Creating a buffer with `GPUBufferUsage.UNIFORM`.
+- Understanding **Bind Groups** and **Bind Group Layouts**.
+- Writing shaders with `@group(0) @binding(0)`.
+- Using `layout: "auto"` for automatic pipeline configuration.
 
 ## 1. Attributes vs. Uniforms
 

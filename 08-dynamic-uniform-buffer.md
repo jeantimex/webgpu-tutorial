@@ -1,12 +1,15 @@
 # 08. Dynamic Uniform Buffer
 
-When drawing many objects with different uniforms (like colors or matrices), creating a separate Bind Group for each object can be inefficient.
+In the last tutorial, we learned how to use a Uniform Buffer to pass global data to a shader. But if we want to draw many objects with different uniforms (like different colors), creating a separate Bind Group for each one is inefficient.
 
-**Dynamic Uniform Buffers** allow us to:
+In this tutorial, we will learn how to use **Dynamic Uniform Buffers**. This allows us to put data for many objects into a single large buffer and simply "slide a window" over it for each draw call.
 
-1.  Store data for _many_ objects in a single large buffer.
-2.  Create **one** Bind Group that views a "window" of that buffer.
-3.  Slide that window using a **Dynamic Offset** during the render pass.
+**Key Learning Points:**
+
+- Storing multiple uniform blocks in a single `GPUBuffer`.
+- Understanding `minUniformBufferOffsetAlignment` (usually 256 bytes).
+- Creating a Bind Group Layout with `hasDynamicOffset: true`.
+- Using the dynamic offset parameter in `setBindGroup`.
 
 ## 1. Alignment Rules
 

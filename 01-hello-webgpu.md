@@ -1,6 +1,14 @@
 # 01. Hello WebGPU
 
-In this first tutorial, we will walk through the process of setting up a WebGPU context and drawing a simple red triangle. This is the "Hello World" of graphics programming.
+Welcome to the WebGPU Tutorial series! In this first tutorial, we will walk through the process of setting up a WebGPU context and drawing a simple red triangle. This is the "Hello World" of graphics programming and the foundation for everything that follows.
+
+**Key Learning Points:**
+
+- Initializing the WebGPU `device` and `context`.
+- Understanding the difference between WebGPU and WebGL.
+- Writing basic WGSL shaders (`@vertex` and `@fragment`).
+- Creating a `GPURenderPipeline`.
+- Submitting commands to the `GPUQueue`.
 
 ## Why WebGPU? (vs WebGL)
 

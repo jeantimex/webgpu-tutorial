@@ -1,6 +1,15 @@
 # 16. Switching Vertex Buffers
 
-Sometimes you want to draw different shapes that share the same look (same shaders, same pipeline). In this case, you don't need to switch pipelines; you just need to switch the **Data**.
+In the last tutorial, we learned how to switch pipelines to change _how_ objects are drawn. But often, we want to keep the same visual style (same pipeline) but draw different _shapes_ (e.g., a triangle and a square).
+
+In this tutorial, we will learn how to **Switch Vertex Buffers**. This allows us to reuse a single pipeline for completely different geometries.
+
+**Key Learning Points:**
+
+- Creating separate `GPUBuffer` objects for different meshes.
+- Ensuring different buffers match the same Pipeline Layout.
+- Binding different buffers using `setVertexBuffer` before drawing.
+- Comparison: Switching Buffers vs. Instancing.
 
 ## 1. Multiple Buffers
 

@@ -1,8 +1,16 @@
 # 03. Vertex Buffer
 
-In the previous tutorial, we hardcoded the triangle's positions directly into the shader. While simple, this isn't practical for real applications where geometry changes or is loaded from files.
+In the last tutorial, we explored how to change the shape of our geometry using primitive topologies. However, our vertex positions were hardcoded directly inside the shader code. This works for a simple triangle but is impossible for complex 3D models.
 
-In this tutorial, we will learn how to pass vertex data from JavaScript to the GPU using **Vertex Buffers**.
+In this tutorial, we will learn how to pass data from JavaScript to the GPU using **Vertex Buffers**, allowing us to render dynamic geometry.
+
+**Key Learning Points:**
+
+- Creating and mapping a `GPUBuffer`.
+- Understanding `Float32Array` and byte alignment.
+- Configuring `GPUVertexBufferLayout` (attributes, stride).
+- Updating shaders to accept inputs via `@location`.
+- Binding buffers with `setVertexBuffer`.
 
 ## 1. Defining Data in JavaScript
 

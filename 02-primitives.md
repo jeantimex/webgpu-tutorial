@@ -1,6 +1,15 @@
 # 02. Primitives
 
-In WebGPU, **Primitive Topology** defines how the GPU assembles vertices into shapes. In our first tutorial, we used the default `triangle-list`. In this tutorial, we will explore different topologies available in WebGPU.
+In the last tutorial, we successfully set up a WebGPU environment and rendered a basic triangle. However, we simply used the default settings for how vertices are assembled.
+
+In this tutorial, we will explore **Primitive Topologies**, which define whether our vertices form triangles, lines, or individual points.
+
+**Key Learning Points:**
+
+- Understanding different topology types: `point-list`, `line-list`, `line-strip`, `triangle-list`, `triangle-strip`.
+- How to configure the `primitive` property in a `GPURenderPipeline`.
+- Using `stripIndexFormat` for strip topologies.
+- Rendering multiple pipelines in a single frame using `setViewport`.
 
 ## 1. The Primitive Property
 
@@ -18,23 +27,28 @@ const pipeline = device.createRenderPipeline({
 Here are the supported topologies and their typical use cases:
 
 ### `point-list`
+
 - **Description**: Draws a single point for each vertex.
 - **Use Case**: Particle systems, point clouds, or visual debugging (marking vertex positions).
 
 ### `line-list`
+
 - **Description**: Draws a line segment for every pair of vertices. Vertices (v0, v1) form the first line, (v2, v3) form the second, and so on. If you have an odd number of vertices, the last one is ignored.
 - **Use Case**: Wireframe rendering, drawing unconnected edges, or simple vector graphics (like loose hairs or grass blades).
 
 ### `line-strip`
+
 - **Description**: Draws a connected series of line segments. Vertices (v0, v1) form the first line, (v1, v2) form the second, etc.
 - **Requirement**: When using `line-strip`, you generally need to specify a `stripIndexFormat` in the pipeline configuration if you plan to use an index buffer (though it's good practice to be aware of it).
 - **Use Case**: Drawing paths, trails, function graphs, or continuous outlines.
 
 ### `triangle-list` (Default)
+
 - **Description**: Draws a distinct triangle for every three vertices. (v0, v1, v2) is the first triangle, (v3, v4, v5) is the second.
 - **Use Case**: Most 3D geometry (meshes, terrain, characters) is built from independent triangles.
 
 ### `triangle-strip`
+
 - **Description**: Draws a connected series of triangles. (v0, v1, v2) is the first triangle, (v1, v2, v3) is the second, and so on.
 - **Requirement**: Like `line-strip`, this topology requires `stripIndexFormat` to be set in the pipeline descriptor.
 - **Use Case**: Optimizing memory bandwidth for continuous surfaces like terrain or spheres, as it reuses vertices implicitly.
@@ -116,7 +130,9 @@ async function init(): Promise<void> {
 
   function render(): void {
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
-    const textureView: GPUTextureView = context!.getCurrentTexture().createView();
+    const textureView: GPUTextureView = context!
+      .getCurrentTexture()
+      .createView();
 
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
@@ -129,7 +145,8 @@ async function init(): Promise<void> {
       ],
     };
 
-    const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    const passEncoder: GPURenderPassEncoder =
+      commandEncoder.beginRenderPass(renderPassDescriptor);
 
     // Grid layout: 3 columns, 2 rows
     const cols = 3;
@@ -144,7 +161,12 @@ async function init(): Promise<void> {
       const y = row * height;
 
       passEncoder.setViewport(x, y, width, height, 0, 1);
-      passEncoder.setScissorRect(Math.floor(x), Math.floor(y), Math.floor(width), Math.floor(height));
+      passEncoder.setScissorRect(
+        Math.floor(x),
+        Math.floor(y),
+        Math.floor(width),
+        Math.floor(height)
+      );
       passEncoder.setPipeline(pipeline);
       passEncoder.draw(6);
     });

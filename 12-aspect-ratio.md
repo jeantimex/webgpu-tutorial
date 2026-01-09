@@ -1,8 +1,17 @@
 # 12. Aspect Ratio
 
-If you noticed in previous tutorials, our "square" looked like a rectangle, and our rotation made the triangle distort. This is because our canvas is rectangular ($800 \times 600$), but WebGPU clip space is a square $[-1, 1] \times [-1, 1]$.
+In the last tutorial, we successfully combined translation, rotation, and scaling. However, if you looked closely, our rotating shape appeared distorted (squashed or stretched).
 
-In this tutorial, we will fix this distortion by applying **Aspect Ratio Correction**.
+This is because our canvas is rectangular ($800 \times 600$), but WebGPU's Clip Space is a square $[-1, 1] \times [-1, 1]$.
+
+In this tutorial, we will learn how to fix this distortion by applying **Aspect Ratio Correction**.
+
+**Key Learning Points:**
+
+- Understanding the relationship between Canvas Space and Clip Space.
+- Calculating the Aspect Ratio (`width / height`).
+- Applying a non-uniform scale to compensate for the distortion.
+- Where to place this correction in the transformation chain.
 
 ## 1. The Problem
 

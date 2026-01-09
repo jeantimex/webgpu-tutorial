@@ -1,8 +1,15 @@
 # 13. Instancing
 
-Drawing the same object many times (e.g., a forest of trees, a crowd of characters) can be slow if you issue a separate `draw()` call for each one.
+In the last tutorial, we perfected our single object's transformation. But what if we want to draw _hundreds_ or _thousands_ of objects? Issuing thousands of individual `draw()` calls (one for each object) is extremely slow and CPU-intensive.
 
-**Instancing** allows you to draw the same geometry multiple times in a single `draw()` call.
+In this tutorial, we will learn how to use **Instancing** to draw many copies of the same mesh efficiently in a **single draw call**.
+
+**Key Learning Points:**
+
+- Using `draw(vertexCount, instanceCount)`.
+- Accessing `@builtin(instance_index)` in the shader.
+- Storing per-instance data in a **Uniform Buffer Array**.
+- Understanding the limitations of Uniform Buffers for instancing.
 
 ## 1. Concepts
 

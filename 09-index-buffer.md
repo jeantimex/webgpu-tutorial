@@ -1,8 +1,15 @@
 # 09. Index Buffer
 
-Complex 3D models often share vertices. For example, in a cube, each corner connects 3 faces. If we used standard `draw()`, we would need to duplicate that corner vertex 3 times (once for each face).
+In the last tutorial, we optimized our draw calls using Dynamic Uniform Buffers. However, for complex 3D models (like a cube or a sphere), vertices are often shared between multiple triangles. Duplicating these vertices is wasteful.
 
-**Index Buffers** allow us to list each unique vertex **once** and then define the shape by referencing those vertices by their index.
+In this tutorial, we will learn how to use **Index Buffers**. This allows us to store each unique vertex only once and define the shape's topology by referencing those vertices by index.
+
+**Key Learning Points:**
+
+- Reducing vertex data redundancy.
+- Creating a buffer with `GPUBufferUsage.INDEX`.
+- Using `setIndexBuffer` and `drawIndexed`.
+- Understanding `Uint16Array` vs `Uint32Array` for indices.
 
 ## 1. Defining Unique Vertices
 

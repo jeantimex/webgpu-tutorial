@@ -62,7 +62,9 @@ async function init(): Promise<void> {
 
   function render(): void {
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
-    const textureView: GPUTextureView = context!.getCurrentTexture().createView();
+    const textureView: GPUTextureView = context!
+      .getCurrentTexture()
+      .createView();
 
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
@@ -75,7 +77,8 @@ async function init(): Promise<void> {
       ],
     };
 
-    const passEncoder: GPURenderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    const passEncoder: GPURenderPassEncoder =
+      commandEncoder.beginRenderPass(renderPassDescriptor);
 
     // Grid layout: 3 columns, 2 rows
     const cols = 3;
@@ -90,7 +93,12 @@ async function init(): Promise<void> {
       const y = row * height;
 
       passEncoder.setViewport(x, y, width, height, 0, 1);
-      passEncoder.setScissorRect(Math.floor(x), Math.floor(y), Math.floor(width), Math.floor(height));
+      passEncoder.setScissorRect(
+        Math.floor(x),
+        Math.floor(y),
+        Math.floor(width),
+        Math.floor(height)
+      );
       passEncoder.setPipeline(pipeline);
       passEncoder.draw(6);
     });

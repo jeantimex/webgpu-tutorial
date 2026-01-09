@@ -1,8 +1,16 @@
 # 10. Single Transformation
 
-In this tutorial, we will learn how to move, rotate, and scale our geometry using **Transformation Matrices**.
+In the last tutorial, we learned how to use Index Buffers to efficiently define geometry. But so far, all our objects have been static and centered at the origin.
 
-We will use the **[wgpu-matrix](https://github.com/greggman/wgpu-matrix)** library, which is the standard math library for WebGPU in JavaScript.
+In this tutorial, we will learn how to move, rotate, and scale our geometry using **Transformation Matrices**. We will be using the `wgpu-matrix` library to handle the mathematics.
+
+**Key Learning Points:**
+
+- Understanding the role of 4x4 Matrices in 3D graphics.
+- Using `wgpu-matrix` to create translation matrices.
+- Passing matrices to the shader via Uniform Buffers.
+- Performing Matrix-Vector multiplication in the Vertex Shader.
+- Why we need to handle Z-clipping carefully.
 
 ## 1. The Math: 4x4 Matrices
 

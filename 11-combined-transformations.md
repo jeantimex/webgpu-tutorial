@@ -1,8 +1,15 @@
 # 11. Combined Transformations
 
-In this tutorial, we will apply multiple transformations at once: **Scaling**, **Rotation**, and **Translation**.
+In the last tutorial, we learned how to apply a single transformation (translation) using a matrix. But real-world objects often need to be moved, rotated, and scaled all at the same time.
 
-Understanding the **order of operations** is critical when combining matrices.
+In this tutorial, we will learn how to **combine multiple transformations** into a single model matrix. We will also explore the critical importance of operation order.
+
+**Key Learning Points:**
+
+- Chaining matrix operations: `Translate * Rotate * Scale`.
+- Understanding why order matters (Local vs. Global space).
+- Using `mat4.rotateZ` and `mat4.scale`.
+- Resetting the matrix to identity before each frame.
 
 ## 1. The Transformation Chain
 

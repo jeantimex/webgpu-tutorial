@@ -1,8 +1,15 @@
 # 06. Shader Structs
 
-As your shaders grow in complexity, passing individual arguments to functions (`fn vs_main(@location(0) a: f32, @location(1) b: f32...)`) becomes messy and hard to read.
+In the last tutorial, we learned how to interleave multiple attributes into a single buffer. However, as our data becomes more complex, passing individual arguments to our shader functions (like `fn vs_main(@location(0) a: f32, @location(1) b: f32...)`) becomes messy and hard to read.
 
-In this tutorial, we will learn how to use **Structs** to organize our shader inputs and outputs. This is best practice for writing clean WGSL code.
+In this tutorial, we will learn how to use **Structs** in WGSL to organize our shader inputs and outputs. This is best practice for writing clean, scalable shader code.
+
+**Key Learning Points:**
+
+- Defining `struct` types in WGSL.
+- Using structs as function arguments and return types.
+- Accessing struct fields using dot notation (e.g., `input.position`).
+- Cleaning up the `vs_main` and `fs_main` signatures.
 
 ## 1. Defining Structs
 

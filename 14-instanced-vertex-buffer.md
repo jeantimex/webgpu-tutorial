@@ -1,8 +1,15 @@
 # 14. Instanced Vertex Buffer
 
-In the previous tutorial, we used a **Uniform Buffer Array** to store instance data. In this tutorial, we will use **Instanced Vertex Buffers**, which is a more standard and scalable way to pass per-instance data.
+In the last tutorial, we implemented instancing using a Uniform Buffer Array to store position and color data. While this works for small batches, Uniform Buffers have strict size limits, making them unsuitable for massive numbers of instances (like particles or grass).
 
-By setting `stepMode: "instance"` on a vertex buffer, we tell the GPU to advance the data pointer only once per instance, rather than per vertex.
+In this tutorial, we will learn how to use **Instanced Vertex Buffers**. This is the standard, scalable way to handle per-instance data.
+
+**Key Learning Points:**
+
+- Setting `stepMode: "instance"` in `GPUVertexBufferLayout`.
+- Interleaving per-instance data (offsets, colors).
+- Passing instance data as standard shader attributes (`@location(...)`).
+- Binding multiple vertex buffers (Geometry + Instance Data).
 
 ## 1. Concepts
 
