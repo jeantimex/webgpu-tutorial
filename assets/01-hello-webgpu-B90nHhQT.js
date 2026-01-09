@@ -1,4 +1,4 @@
-import{i as d}from"./webgpu-util-GTOb4j6a.js";async function u(){const t=document.querySelector("#webgpu-canvas"),{device:e,context:o,canvasFormat:i}=await d(t),r=e.createShaderModule({label:"Red Triangle Shader",code:`
+import"./common-BNB2xREb.js";import{i as d}from"./webgpu-util-BApOR-AX.js";async function u(){const t=document.querySelector("#webgpu-canvas"),{device:e,context:o,canvasFormat:i}=await d(t),r=e.createShaderModule({label:"Red Triangle Shader",code:`
       @vertex
       fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
         var pos = array<vec2f, 3>(

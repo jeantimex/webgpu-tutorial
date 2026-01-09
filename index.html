@@ -4,38 +4,201 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/webgpu-tutorial/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>webgpu-tutorial</title>
+    <title>WebGPU Tutorials</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Google Sans Flex", "Google Sans", "Helvetica Neue",
+          sans-serif;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+        color: #e0e0e0;
+        background-color: #1a1a1a;
+      }
+
+      #sidebar {
+        width: 300px;
+        background-color: #242424;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+
+      #sidebar h1 {
+        font-size: 1.2rem;
+        padding: 1rem;
+        margin: 0;
+        border-bottom: 1px solid #333;
+        background-color: #2a2a2a;
+      }
+
+      #tutorial-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      #tutorial-list li {
+        border-bottom: 1px solid #333;
+      }
+
+      #tutorial-list a {
+        display: block;
+        padding: 0.75rem 1rem;
+        text-decoration: none;
+        color: #b0b0b0;
+        font-size: 0.9rem;
+        transition:
+          background-color 0.2s,
+          color 0.2s;
+      }
+
+      #tutorial-list a:hover {
+        background-color: #333;
+        color: #fff;
+      }
+
+      #tutorial-list a.active {
+        background-color: #3d3d3d;
+        color: #4daafc;
+        border-left: 4px solid #4daafc;
+      }
+
+      #main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background-color: #121212;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="app">
+    <div id="sidebar">
       <h1>WebGPU Tutorials</h1>
-      <ul>
-        <li><a href="01-hello-webgpu.html">01. Hello WebGPU</a></li>
-        <li><a href="02-vertex-buffer.html">02. Vertex Buffer</a></li>
+      <ul id="tutorial-list">
         <li>
-          <a href="03-multiple-vertex-buffers.html"
-            >03. Multiple Vertex Buffers</a
+          <a href="01-hello-webgpu.html" target="content-frame"
+            >01. Hello WebGPU</a
           >
         </li>
         <li>
-          <a href="04-interleaved-vertex-buffers.html">
-            04. Interleaved Vertex Buffers
-          </a>
-        </li>
-        <li><a href="05-shader-structs.html">05. Shader Structs</a></li>
-        <li><a href="06-uniform-buffer.html">06. Uniform Buffer</a></li>
-        <li><a href="07-index-buffer.html">07. Index Buffer</a></li>
-        <li>
-          <a href="08-single-transformation.html">08. Single Transformation</a>
+          <a href="02-primitives.html" target="content-frame">02. Primitives</a>
         </li>
         <li>
-          <a href="09-combined-transformations.html"
-            >09. Combined Transformations</a
+          <a href="03-vertex-buffer.html" target="content-frame"
+            >03. Vertex Buffer</a
           >
         </li>
-        <li><a href="10-aspect-ratio.html">10. Aspect Ratio</a></li>
-        <li><a href="11-instancing.html">11. Instancing</a></li>
+        <li>
+          <a href="04-multiple-vertex-buffers.html" target="content-frame"
+            >04. Multiple Vertex Buffers</a
+          >
+        </li>
+        <li>
+          <a href="05-interleaved-vertex-buffers.html" target="content-frame"
+            >05. Interleaved Vertex Buffers</a
+          >
+        </li>
+        <li>
+          <a href="06-shader-structs.html" target="content-frame"
+            >06. Shader Structs</a
+          >
+        </li>
+        <li>
+          <a href="07-uniform-buffer.html" target="content-frame"
+            >07. Uniform Buffer</a
+          >
+        </li>
+        <li>
+          <a href="08-dynamic-uniform-buffer.html" target="content-frame"
+            >08. Dynamic Uniform Buffer</a
+          >
+        </li>
+        <li>
+          <a href="09-index-buffer.html" target="content-frame"
+            >09. Index Buffer</a
+          >
+        </li>
+        <li>
+          <a href="10-single-transformation.html" target="content-frame"
+            >10. Single Transformation</a
+          >
+        </li>
+        <li>
+          <a href="11-combined-transformations.html" target="content-frame"
+            >11. Combined Transformations</a
+          >
+        </li>
+        <li>
+          <a href="12-aspect-ratio.html" target="content-frame"
+            >12. Aspect Ratio</a
+          >
+        </li>
+        <li>
+          <a href="13-instancing.html" target="content-frame">13. Instancing</a>
+        </li>
+        <li>
+          <a href="14-instanced-vertex-buffer.html" target="content-frame"
+            >14. Instanced Vertex Buffer</a
+          >
+        </li>
+        <li>
+          <a href="15-switching-pipelines.html" target="content-frame"
+            >15. Switching Pipelines</a
+          >
+        </li>
+        <li>
+          <a href="16-switching-vertex-buffers.html" target="content-frame"
+            >16. Switching Vertex Buffers</a
+          >
+        </li>
+        <li>
+          <a href="17-simple-compute.html" target="content-frame"
+            >17. Simple Compute Shader</a
+          >
+        </li>
       </ul>
     </div>
+
+    <div id="main-content">
+      <iframe name="content-frame" src="01-hello-webgpu.html"></iframe>
+    </div>
+
+    <script>
+      const links = document.querySelectorAll("#tutorial-list a");
+      const iframe = document.querySelector("iframe");
+
+      function setActiveLink(href) {
+        links.forEach((link) => {
+          if (link.getAttribute("href") === href) {
+            link.classList.add("active");
+          } else {
+            link.classList.remove("active");
+          }
+        });
+      }
+
+      // Set initial active link
+      const initialSrc = iframe.getAttribute("src");
+      setActiveLink(initialSrc);
+
+      // Update active link on click
+      links.forEach((link) => {
+        link.addEventListener("click", (e) => {
+          setActiveLink(link.getAttribute("href"));
+        });
+      });
+    </script>
   </body>
 </html>
