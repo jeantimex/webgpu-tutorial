@@ -1,4 +1,4 @@
-# 11. Aspect Ratio
+# 12. Aspect Ratio
 
 If you noticed in previous tutorials, our "square" looked like a rectangle, and our rotation made the triangle distort. This is because our canvas is rectangular ($800 \times 600$), but WebGPU clip space is a square $[-1, 1] \times [-1, 1]$.
 

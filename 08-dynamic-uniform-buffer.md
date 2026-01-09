@@ -1,4 +1,4 @@
-# 07. Dynamic Uniform Buffer
+# 08. Dynamic Uniform Buffer
 
 When drawing many objects with different uniforms (like colors or matrices), creating a separate Bind Group for each object can be inefficient.
 

@@ -1,4 +1,4 @@
-# 05. Shader Structs
+# 06. Shader Structs
 
 As your shaders grow in complexity, passing individual arguments to functions (`fn vs_main(@location(0) a: f32, @location(1) b: f32...)`) becomes messy and hard to read.
 

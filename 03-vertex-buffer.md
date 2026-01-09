@@ -1,4 +1,4 @@
-# 02. Vertex Buffer
+# 03. Vertex Buffer
 
 In the previous tutorial, we hardcoded the triangle's positions directly into the shader. While simple, this isn't practical for real applications where geometry changes or is loaded from files.
 

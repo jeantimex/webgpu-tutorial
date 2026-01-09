@@ -1,4 +1,4 @@
-# 08. Index Buffer
+# 09. Index Buffer
 
 Complex 3D models often share vertices. For example, in a cube, each corner connects 3 faces. If we used standard `draw()`, we would need to duplicate that corner vertex 3 times (once for each face).
 

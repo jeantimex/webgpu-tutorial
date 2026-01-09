@@ -1,4 +1,4 @@
-# 03. Multiple Vertex Buffers
+# 04. Multiple Vertex Buffers
 
 In this tutorial, we will learn how to feed data to the vertex shader using **multiple vertex buffers**. We will separate our position data and color data into two different buffers and combine them in the render pipeline.
 

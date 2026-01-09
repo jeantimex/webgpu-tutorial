@@ -1,4 +1,4 @@
-# 14. Switching Pipelines
+# 15. Switching Pipelines
 
 In complex applications, not everything looks the same. You might have some objects that are solid colors, some that are textured, and some that are wireframes.
 

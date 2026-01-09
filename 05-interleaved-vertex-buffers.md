@@ -1,4 +1,4 @@
-# 04. Interleaved Vertex Buffers
+# 05. Interleaved Vertex Buffers
 
 In the previous tutorial, we used two separate buffers for position and color. In this tutorial, we will use **Interleaved Vertex Buffers**.
 

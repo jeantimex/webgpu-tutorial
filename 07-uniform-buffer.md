@@ -1,4 +1,4 @@
-# 06. Uniform Buffer
+# 07. Uniform Buffer
 
 In previous tutorials, we passed data per-vertex. But what if we want to pass data that is **constant** for the entire draw call, like a global color, a transformation matrix, or light settings?
 

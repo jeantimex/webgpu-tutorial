@@ -1,4 +1,4 @@
-# 15. Switching Vertex Buffers
+# 16. Switching Vertex Buffers
 
 Sometimes you want to draw different shapes that share the same look (same shaders, same pipeline). In this case, you don't need to switch pipelines; you just need to switch the **Data**.
 
