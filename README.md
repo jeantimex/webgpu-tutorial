@@ -24,7 +24,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 16 | [Switching Vertex Buffers](16-switching-vertex-buffers.md) | Learn how to reuse a pipeline while switching geometry data. |
 | 17 | [Simple Compute Shader](17-simple-compute.md) | Learn how to use Compute Shaders for GPGPU tasks by multiplying arrays. |
 | 18 | [Particle System](18-particle-system.md) | Combine Compute and Render pipelines to simulate and draw thousands of particles. |
-| 19 | [Image Particles (Mona Lisa)](19-image-particles.md) | Use image data to drive particle colors and target positions for an interactive effect. |
+| 19 | [Image Particles](19-image-particles.md) | Use image data to drive particle colors and target positions for an interactive effect. |
 | 20 | [Image Processing](20-image-processing.md) | Manipulate image pixels directly using storage textures and compute shaders. |
 | 21 | [Game of Life](21-game-of-life.md) | Implement cellular automata using double buffering and toroidal coordinates. |
 | 22 | [Optimized Blur](22-shared-memory-blur.md) | Use workgroup shared memory to significantly reduce memory bandwidth for image filters. |
