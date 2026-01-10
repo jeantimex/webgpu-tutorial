@@ -10,23 +10,18 @@ struct Uniforms {
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
-  @location(0) color : vec4f,
 }
 
 @vertex
-fn vs_main(
-  @location(0) pos : vec3f,
-  @location(1) color : vec3f
-) -> VertexOutput {
+fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
   var out : VertexOutput;
   out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
-  out.color = vec4f(color, 1.0);
   return out;
 }
 
 @fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-  return in.color;
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 1.0); // Solid Red
 }
 `;
 
@@ -37,15 +32,15 @@ async function init() {
   // 1. Define Cube Data (8 unique vertices only!)
   // prettier-ignore
   const vertexData = new Float32Array([
-    // Position (x, y, z)    // Color (r, g, b)
-    -0.5, -0.5,  0.5,       1, 0, 0, // 0: Front-Bottom-Left (Red)
-     0.5, -0.5,  0.5,       0, 1, 0, // 1: Front-Bottom-Right (Green)
-     0.5,  0.5,  0.5,       0, 0, 1, // 2: Front-Top-Right (Blue)
-    -0.5,  0.5,  0.5,       1, 1, 0, // 3: Front-Top-Left (Yellow)
-    -0.5, -0.5, -0.5,       1, 0, 1, // 4: Back-Bottom-Left (Magenta)
-     0.5, -0.5, -0.5,       0, 1, 1, // 5: Back-Bottom-Right (Cyan)
-     0.5,  0.5, -0.5,       1, 1, 1, // 6: Back-Top-Right (White)
-    -0.5,  0.5, -0.5,       0, 0, 0, // 7: Back-Top-Left (Black)
+    // Position (x, y, z)
+    -0.5, -0.5,  0.5, // 0: Front-Bottom-Left
+     0.5, -0.5,  0.5, // 1: Front-Bottom-Right
+     0.5,  0.5,  0.5, // 2: Front-Top-Right
+    -0.5,  0.5,  0.5, // 3: Front-Top-Left
+    -0.5, -0.5, -0.5, // 4: Back-Bottom-Left
+     0.5, -0.5, -0.5, // 5: Back-Bottom-Right
+     0.5,  0.5, -0.5, // 6: Back-Top-Right
+    -0.5,  0.5, -0.5, // 7: Back-Top-Left
   ]);
 
   // 2. Define Index Data (Connecting the 8 vertices into 12 triangles)
@@ -99,10 +94,9 @@ async function init() {
       module: device.createShaderModule({ code: shaderCode }),
       entryPoint: "vs_main",
       buffers: [{
-        arrayStride: 24, // 6 floats * 4 bytes
+        arrayStride: 12, // 3 floats * 4 bytes
         attributes: [
           { shaderLocation: 0, offset: 0, format: "float32x3" }, // pos
-          { shaderLocation: 1, offset: 12, format: "float32x3" }, // color
         ],
       }],
     },
