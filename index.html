@@ -802,6 +802,7 @@
           markdownDiv.style.display = "block";
           btnTutorial.classList.add("active");
           btnDemo.classList.remove("active");
+          iframe.src = "about:blank";
           const mdFile = currentPage.replace(".html", ".md");
           fetch(mdFile)
             .then((res) => {
