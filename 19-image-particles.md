@@ -1,12 +1,12 @@
 # 19. Image Particles (Mona Lisa)
 
-In this tutorial, we will push our particle system further by using an image to drive the colors and target positions of our particles. We'll recreate the famous **Mona Lisa** using 90,000+ particles and add a "scattering" effect.
+In this tutorial, we will push our particle system further by using an image to drive the colors and target positions of our particles. We'll recreate the famous **Mona Lisa** using 90,000+ particles and add an interactive "explosion" effect.
 
 **Key Learning Points:**
 - Loading an image and extracting pixel data via an offscreen canvas.
 - Mapping pixel coordinates to Normalized Device Coordinates (NDC).
 - Implementing a "Magnet" effect where particles attract to a specific target position.
-- Controlling simulation parameters (Scatter vs. Assemble) via Uniforms and GUI.
+- Handling interactive updates by writing new data to existing GPU buffers.
 
 ## 1. Extracting Image Data
 
@@ -31,42 +31,57 @@ const imgData = ctx.getImageData(0, 0, 250, 375).data;
 
 ## 2. Particle Data Mapping
 
-Each particle corresponds to one pixel in our 250x375 grid.
-- **Color**: Derived directly from the pixel's RGB values.
-- **Target Position**: We map the pixel's (x, y) grid coordinates to the [-1, 1] NDC range, accounting for the image's aspect ratio.
+Each particle corresponds to one pixel in our grid. To represent this on the GPU, we use a `Particle` struct with the following key fields:
+
+- **`targetPos` (`targetX`, `targetY`)**: These are the "destination" coordinates. We map the 2D grid index `(px, py)` to the `[-1, 1]` range. We multiply `targetX` by the image's aspect ratio to maintain portrait proportions and flip `targetY` because screen coordinates are top-down while WebGPU is bottom-up.
+- **`color` (`r`, `g`, `b`)**: We extract the Red, Green, and Blue channels from the image data and normalize them from `0..255` to the `0..1` range required by the shader.
 
 ```typescript
 const imageAspectRatio = width / height;
 
 for (let i = 0; i < numParticles; i++) {
+  const offset = i * floatPerParticle;
   const px = i % width;
   const py = Math.floor(i / width);
 
-  // Target Position: Map grid index to screen space
-  // We multiply X by imageAspectRatio to maintain portrait proportions
-  particle.targetX = (px / width - 0.5) * (1.2 * imageAspectRatio);
-  particle.targetY = (0.5 - py / height) * 1.2; // Flip Y
+  // currentPos (x, y) - Start at random positions
+  particleData[offset + 0] = Math.random() * 4 - 2;
+  particleData[offset + 1] = Math.random() * 4 - 2;
+
+  // targetPos (targetX, targetY) - Where the pixel belongs in the image
+  // We use 1.2 as a scaling factor to control the image size on screen
+  particleData[offset + 2] = (px / width - 0.5) * (1.2 * imageAspectRatio);
+  particleData[offset + 3] = (0.5 - py / height) * 1.2;
   
-  // Color: Normalize 0..255 to 0..1
-  particle.r = imgData[i * 4 + 0] / 255;
-  // ...
+  // color (r, g, b) - Normalized pixel colors
+  particleData[offset + 4] = imgData[i * 4 + 0] / 255;
+  particleData[offset + 5] = imgData[i * 4 + 1] / 255;
+  particleData[offset + 6] = imgData[i * 4 + 2] / 255;
+
+  // size - Small squares for a "pixel" look
+  particleData[offset + 7] = 0.003;
 }
 ```
 
-## 3. The "Liquid" Compute Shader
+## 3. The "Fly-in" Compute Shader
 
-The Compute Shader calculates two possible positions for every particle:
-1.  **Mona Lisa Position**: The original pixel coordinate (`p.targetPos`).
-2.  **Scattered Position**: A random coordinate based on the particle's index.
+The Compute Shader is very simple. It calculates the interpolated position between the particle's current position and its `targetPos` using the `mix()` function.
 
-We use a `scatter` uniform (0 to 1) to transition between these two states using the `mix()` function.
+Since each particle starts at a random position, they will appear to "fly in" from all directions to form the image.
 
 ```wgsl
-// Determine where the particle WANTS to go
-let destination = mix(p.targetPos, scatteredPos, params.scatter);
+@compute @workgroup_size(64)
+fn cs_main(@builtin(global_invocation_id) id : vec3u) {
+  let index = id.x;
+  if (index >= arrayLength(&particles)) { return; }
 
-// Smoothly move the particle towards that destination
-p.pos = mix(p.pos, destination, params.speed);
+  var p = particles[index];
+  
+  // Smoothly move the particle towards its target destination
+  p.pos = mix(p.pos, p.targetPos, params.speed);
+
+  particles[index] = p;
+}
 ```
 
 ## 4. Performance
@@ -77,11 +92,29 @@ Even with nearly **100,000 particles**, WebGPU handles the simulation and render
 
 This is the power of offloading heavy calculations to the graphics hardware!
 
+## 5. Interactive Explosion
+
+To make the demo more interactive, we added a click event listener to the canvas. When you click:
+1.  We iterate through the particle data on the CPU and assign new random `pos` values to every particle.
+2.  We use `device.queue.writeBuffer()` to upload these new positions to the GPU.
+3.  Since the Compute Shader is constantly pulling particles towards their `targetPos`, they will automatically fly back to reform the Mona Lisa.
+
+```typescript
+canvas.addEventListener("click", () => {
+  for (let i = 0; i < numParticles; i++) {
+    const offset = i * floatPerParticle;
+    // Randomize current position only
+    particleData[offset + 0] = Math.random() * 4 - 2; 
+    particleData[offset + 1] = Math.random() * 4 - 2;
+  }
+  device.queue.writeBuffer(particleBuffer, 0, particleData);
+});
+```
+
 ## Full Code
 
 ```typescript
 import { initWebGPU } from "./utils/webgpu-util";
-import GUI from "lil-gui";
 
 // ==========================================
 // 1. Compute Shader
@@ -96,17 +129,11 @@ struct Particle {
 
 struct Params {
   speed : f32,
-  scatter : f32, // 0.0 = Assemble, 1.0 = Scatter
   time : f32,
 }
 
 @group(0) @binding(0) var<storage, read_write> particles : array<Particle>;
 @group(0) @binding(1) var<uniform> params : Params;
-
-// Simple random function
-fn rand(co: vec2f) -> f32 {
-    return fract(sin(dot(co, vec2f(12.9898, 78.233))) * 43758.5453);
-}
 
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) id : vec3u) {
@@ -115,18 +142,8 @@ fn cs_main(@builtin(global_invocation_id) id : vec3u) {
 
   var p = particles[index];
   
-  // Create a scattered destination based on index
-  let seed = f32(index);
-  let scatteredPos = vec2f(
-    rand(vec2f(seed, 1.0)) * 2.0 - 1.0,
-    rand(vec2f(seed, 2.0)) * 2.0 - 1.0
-  );
-
-  // Determine current destination based on the "scatter" parameter
-  let destination = mix(p.targetPos, scatteredPos, params.scatter);
-
-  // Move towards destination (Lerp)
-  p.pos = mix(p.pos, destination, params.speed);
+  // Move towards target position (Lerp)
+  p.pos = mix(p.pos, p.targetPos, params.speed);
 
   particles[index] = p;
 }
@@ -170,6 +187,7 @@ fn vs_main(
   let cornerPos = corners[vIdx] * p.size; 
   
   // Apply Aspect Ratio Correction to the entire X coordinate
+  // This keeps both the particles and the overall image from stretching
   let finalPos = vec2f((p.pos.x + cornerPos.x) / uniforms.aspectRatio, p.pos.y + cornerPos.y);
 
   var out : VertexOutput;
@@ -202,7 +220,7 @@ async function init() {
   await img.decode();
 
   const offscreen = document.createElement("canvas");
-  const ctx = offscreen.getContext("2d")!;
+  const ctx = offscreen.getContext("2d", { willReadFrequently: true })!;
   
   const w = 250;
   const h = 375;
@@ -212,9 +230,15 @@ async function init() {
   
   const imgData = ctx.getImageData(0, 0, w, h).data;
   const numParticles = w * h;
+  const imageAspectRatio = w / h;
+
+  const countDiv = document.getElementById("particle-count");
+  if (countDiv) {
+    countDiv.innerText = `${numParticles.toLocaleString()} particles`;
+  }
 
   // --- 2. Init Particle Data ---
-  const floatPerParticle = 8; 
+  const floatPerParticle = 8; // pos(2), targetPos(2), color(3), size(1)
   const particleData = new Float32Array(numParticles * floatPerParticle);
 
   for (let i = 0; i < numParticles; i++) {
@@ -222,13 +246,20 @@ async function init() {
     const px = i % w;
     const py = Math.floor(i / w);
 
-    particleData[offset + 0] = Math.random() * 2 - 1;
-    particleData[offset + 1] = Math.random() * 2 - 1;
-    particleData[offset + 2] = (px / w - 0.5) * 1.2;
+    // Initial random position (Scattered)
+    particleData[offset + 0] = Math.random() * 4 - 2; 
+    particleData[offset + 1] = Math.random() * 4 - 2;
+
+    // Target position (Apply image aspect ratio to X)
+    particleData[offset + 2] = (px / w - 0.5) * (1.2 * imageAspectRatio);
     particleData[offset + 3] = (0.5 - py / h) * 1.2;
+
+    // Color from image (Normalized 0..1)
     particleData[offset + 4] = imgData[i * 4 + 0] / 255;
     particleData[offset + 5] = imgData[i * 4 + 1] / 255;
     particleData[offset + 6] = imgData[i * 4 + 2] / 255;
+
+    // Size
     particleData[offset + 7] = 0.003;
   }
 
@@ -250,7 +281,7 @@ async function init() {
   device.queue.writeBuffer(renderUniformBuffer, 0, new Float32Array([aspectRatio]));
 
   const computeParamsBuffer = device.createBuffer({
-    size: 12, 
+    size: 8, // 2 floats: speed, time
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -286,24 +317,31 @@ async function init() {
     ]
   });
 
-  // --- 6. Interaction ---
-  const settings = { speed: 0.02, scatter: 0.0 };
-  const gui = new GUI({
-    container: document.getElementById('gui-container') as HTMLElement,
-    title: 'Mona Lisa Controls'
-  });
-  gui.add(settings, 'speed', 0.005, 0.1).name('Assembly Speed');
-  gui.add(settings, 'scatter', 0, 1).name('Scatter Amount');
-
   loadingOverlay.style.display = "none";
 
-  // --- 7. Frame Loop ---
+  const assemblySpeed = 0.02;
+
+  // --- 7. Interaction: Click to Explode ---
+  canvas.addEventListener("click", () => {
+    for (let i = 0; i < numParticles; i++) {
+      const offset = i * floatPerParticle;
+      // Randomize current position only
+      particleData[offset + 0] = Math.random() * 4 - 2; 
+      particleData[offset + 1] = Math.random() * 4 - 2;
+    }
+    device.queue.writeBuffer(particleBuffer, 0, particleData);
+  });
+
+  // --- 8. Frame Loop ---
   function frame(time: number) {
+    // Update compute params
     device.queue.writeBuffer(computeParamsBuffer, 0, new Float32Array([
-      settings.speed, settings.scatter, time / 1000
+      assemblySpeed, 
+      time / 1000
     ]));
 
     const commandEncoder = device.createCommandEncoder();
+
     const computePass = commandEncoder.beginComputePass();
     computePass.setPipeline(computePipeline);
     computePass.setBindGroup(0, computeBindGroup);
@@ -315,7 +353,8 @@ async function init() {
       colorAttachments: [{
         view: textureView,
         clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
-        loadOp: 'clear', storeOp: 'store'
+        loadOp: 'clear', 
+        storeOp: 'store'
       }]
     });
     renderPass.setPipeline(renderPipeline);

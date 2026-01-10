@@ -26,17 +26,28 @@
         font-family: sans-serif;
         display: none;
       }
+      #particle-count {
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        color: #aaa;
+        font-family: monospace;
+        font-size: 0.9rem;
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
     </style>
-    <script type="module" crossorigin src="/webgpu-tutorial/assets/19-image-particles-D4HG0HZ6.js"></script>
+    <script type="module" crossorigin src="/webgpu-tutorial/assets/19-image-particles-DM-TLCWg.js"></script>
     <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/modulepreload-polyfill-B5Qt9EMX.js">
     <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/webgpu-util-BApOR-AX.js">
-    <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/lil-gui.esm-CNIGZg2U.js">
     <link rel="stylesheet" crossorigin href="/webgpu-tutorial/assets/common-iQuDHWoI.css">
   </head>
   <body>
     <div id="canvas-container">
-      <div id="gui-container"></div>
       <div id="loading-overlay">Loading Image Data...</div>
+      <div id="particle-count"></div>
       <canvas id="webgpu-canvas" width="1024" height="768"></canvas>
     </div>
   </body>
