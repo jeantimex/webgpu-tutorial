@@ -1,5 +1,4 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import GUI from "lil-gui";
 
 // ==========================================
 // 1. Compute Shader
@@ -14,17 +13,11 @@ struct Particle {
 
 struct Params {
   speed : f32,
-  scatter : f32, // 0.0 = Assemble, 1.0 = Scatter
   time : f32,
 }
 
 @group(0) @binding(0) var<storage, read_write> particles : array<Particle>;
 @group(0) @binding(1) var<uniform> params : Params;
-
-// Simple random function
-fn rand(co: vec2f) -> f32 {
-    return fract(sin(dot(co, vec2f(12.9898, 78.233))) * 43758.5453);
-}
 
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) id : vec3u) {
@@ -33,18 +26,8 @@ fn cs_main(@builtin(global_invocation_id) id : vec3u) {
 
   var p = particles[index];
   
-  // Create a scattered destination based on index
-  let seed = f32(index);
-  let scatteredPos = vec2f(
-    rand(vec2f(seed, 1.0)) * 2.0 - 1.0,
-    rand(vec2f(seed, 2.0)) * 2.0 - 1.0
-  );
-
-  // Determine current destination based on the "scatter" parameter
-  let destination = mix(p.targetPos, scatteredPos, params.scatter);
-
-  // Move towards destination (Lerp)
-  p.pos = mix(p.pos, destination, params.speed);
+  // Move towards target position (Lerp)
+  p.pos = mix(p.pos, p.targetPos, params.speed);
 
   particles[index] = p;
 }
@@ -88,7 +71,6 @@ fn vs_main(
   let cornerPos = corners[vIdx] * p.size; 
   
   // Apply Aspect Ratio Correction to the entire X coordinate
-  // This keeps both the particles and the overall image from stretching
   let finalPos = vec2f((p.pos.x + cornerPos.x) / uniforms.aspectRatio, p.pos.y + cornerPos.y);
 
   var out : VertexOutput;
@@ -133,6 +115,11 @@ async function init() {
   const numParticles = w * h;
   const imageAspectRatio = w / h;
 
+  const countDiv = document.getElementById("particle-count");
+  if (countDiv) {
+    countDiv.innerText = `${numParticles.toLocaleString()} particles`;
+  }
+
   // --- 2. Init Particle Data ---
   const floatPerParticle = 8; // pos(2), targetPos(2), color(3), size(1)
   const particleData = new Float32Array(numParticles * floatPerParticle);
@@ -142,21 +129,21 @@ async function init() {
     const px = i % w;
     const py = Math.floor(i / w);
 
-    // Initial random position
-    particleData[offset + 0] = Math.random() * 2 - 1;
-    particleData[offset + 1] = Math.random() * 2 - 1;
+    // Initial random position (Scattered)
+    particleData[offset + 0] = Math.random() * 4 - 2; 
+    particleData[offset + 1] = Math.random() * 4 - 2;
 
     // Target position (Apply image aspect ratio to X)
     particleData[offset + 2] = (px / w - 0.5) * (1.2 * imageAspectRatio);
     particleData[offset + 3] = (0.5 - py / h) * 1.2;
 
-    // Color from image (Normalized 0..1)
+    // Color from image
     particleData[offset + 4] = imgData[i * 4 + 0] / 255;
     particleData[offset + 5] = imgData[i * 4 + 1] / 255;
     particleData[offset + 6] = imgData[i * 4 + 2] / 255;
 
     // Size
-    particleData[offset + 7] = 0.003;
+    particleData[offset + 7] = 0.004;
   }
 
   const particleBuffer = device.createBuffer({
@@ -177,7 +164,7 @@ async function init() {
   device.queue.writeBuffer(renderUniformBuffer, 0, new Float32Array([aspectRatio]));
 
   const computeParamsBuffer = device.createBuffer({
-    size: 12, 
+    size: 8, // 2 floats: speed, time
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -213,25 +200,27 @@ async function init() {
     ]
   });
 
-  // --- 6. Interaction ---
-  const settings = {
-    speed: 0.02,
-    scatter: 0.0,
-  };
-  const gui = new GUI({
-    container: document.getElementById('gui-container') as HTMLElement,
-    title: 'Mona Lisa Controls'
-  });
-  gui.add(settings, 'speed', 0.005, 0.1).name('Assembly Speed');
-  gui.add(settings, 'scatter', 0, 1).name('Scatter Amount');
-
   loadingOverlay.style.display = "none";
 
-  // --- 7. Frame Loop ---
+  const assemblySpeed = 0.02;
+
+  // --- 7. Interaction: Click to Explode ---
+  canvas.addEventListener("click", () => {
+    for (let i = 0; i < numParticles; i++) {
+      const offset = i * floatPerParticle;
+      // Randomize current position only
+      particleData[offset + 0] = Math.random() * 4 - 2; 
+      particleData[offset + 1] = Math.random() * 4 - 2;
+    }
+    // Upload updated positions to GPU
+    device.queue.writeBuffer(particleBuffer, 0, particleData);
+  });
+
+  // --- 8. Frame Loop ---
   function frame(time: number) {
+    // Update compute params
     device.queue.writeBuffer(computeParamsBuffer, 0, new Float32Array([
-      settings.speed, 
-      settings.scatter, 
+      assemblySpeed, 
       time / 1000
     ]));
 
