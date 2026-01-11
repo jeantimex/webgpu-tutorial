@@ -1,4 +1,4 @@
-# 35. Sphere Wireframe
+# 35. Sphere Geometry
 
 In this tutorial, instead of loading a model from a file, we will generate one using math! We'll build a configurable **Sphere Generator** similar to the one found in engines like Three.js.
 
