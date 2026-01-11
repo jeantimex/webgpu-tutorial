@@ -37,6 +37,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 29 | [Texture Atlas](29-texture-atlas.md) | Use a single texture with multiple regions to map different images to each face of a cube. |
 | 30 | [Directional Light](30-directional-light.md) | Implement Diffuse (Lambertian) lighting using surface normals and dot products. |
 | 31 | [Ambient Light](31-ambient-light.md) | Learn about global background lighting that affects all surfaces equally. |
+| 32 | [Point Light](32-point-light.md) | Simulate a light source with a specific position that radiates light in all directions. |
 
 ## Getting Started
 
