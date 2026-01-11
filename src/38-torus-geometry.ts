@@ -21,13 +21,18 @@ fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
+fn fs_wireframe() -> @location(0) vec4f {
   return vec4f(1.0, 1.0, 1.0, 1.0); // White lines
+}
+
+@fragment
+fn fs_solid() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 0.5); // Transparent Red
 }
 `;
 
-// Procedural Torus Generator (Wireframe)
-function createTorusWireframe(
+// Procedural Torus Generator
+function createTorusGeometry(
   radius: number = 1,
   tube: number = 0.4,
   radialSegments: number = 8,
@@ -35,7 +40,8 @@ function createTorusWireframe(
   arc: number = Math.PI * 2
 ) {
   const positions: number[] = [];
-  const indices: number[] = [];
+  const indicesLine: number[] = [];
+  const indicesTri: number[] = [];
 
   // Generate Vertices
   for (let j = 0; j <= radialSegments; j++) {
@@ -56,7 +62,7 @@ function createTorusWireframe(
     }
   }
 
-  // Generate Indices (Line List)
+  // Generate Indices
   for (let j = 0; j < radialSegments; j++) {
     for (let i = 0; i < tubularSegments; i++) {
       const a = (tubularSegments + 1) * j + i;
@@ -64,19 +70,22 @@ function createTorusWireframe(
       const c = (tubularSegments + 1) * (j + 1) + i + 1;
       const d = (tubularSegments + 1) * j + i + 1;
 
-      // b is below a, d is right of a
-      
-      // Vertical line (around the tube ring)
-      indices.push(a, b);
-      
-      // Horizontal line (along the main ring)
-      indices.push(a, d);
+      // --- Wireframe (Line List) ---
+      indicesLine.push(a, b); // Vertical
+      indicesLine.push(a, d); // Horizontal
+      indicesLine.push(a, c); // Diagonal
+
+      // --- Solid (Triangle List) ---
+      // a, b, d and b, c, d
+      indicesTri.push(a, b, d);
+      indicesTri.push(b, c, d);
     }
   }
 
   return {
     positions: new Float32Array(positions),
-    indices: new Uint16Array(indices),
+    indicesLine: new Uint16Array(indicesLine),
+    indicesTri: new Uint16Array(indicesTri),
   };
 }
 
@@ -84,11 +93,22 @@ async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  // --- Pipeline ---
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  // --- Layout ---
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    }],
+  });
+
+  // --- Pipeline 1: Wireframe ---
+  const pipelineWireframe = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: shaderModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 12,
@@ -96,8 +116,8 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
-      entryPoint: "fs_main",
+      module: shaderModule,
+      entryPoint: "fs_wireframe",
       targets: [{ format: canvasFormat }],
     },
     primitive: { topology: "line-list" },
@@ -108,9 +128,47 @@ async function init() {
     },
   });
 
+  // --- Pipeline 2: Solid (Transparent) ---
+  const pipelineSolid = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 12,
+        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_solid",
+      targets: [{
+        format: canvasFormat,
+        blend: {
+          color: {
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+            operation: "add",
+          },
+          alpha: {
+            srcFactor: "one",
+            dstFactor: "zero",
+            operation: "add",
+          },
+        },
+      }],
+    },
+    primitive: { topology: "triangle-list", cullMode: "none" },
+    depthStencil: {
+      depthWriteEnabled: false,
+      depthCompare: "less",
+      format: "depth24plus",
+    },
+  });
+
   // --- Buffers ---
   const maxVerts = 100000;
-  const maxIndices = 200000;
+  const maxIndices = 600000;
   
   const vertexBuffer = device.createBuffer({
     size: maxVerts * 12,
@@ -136,7 +194,7 @@ async function init() {
   });
 
   const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout,
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
@@ -147,12 +205,13 @@ async function init() {
     radialSegments: 16,
     tubularSegments: 32,
     arc: 2, // x PI
+    wireframe: true,
   };
 
   let indexCount = 0;
 
   function updateGeometry() {
-    const data = createTorusWireframe(
+    const data = createTorusGeometry(
       params.radius,
       params.tube,
       Math.floor(params.radialSegments),
@@ -161,8 +220,11 @@ async function init() {
     );
     
     device.queue.writeBuffer(vertexBuffer, 0, data.positions);
-    device.queue.writeBuffer(indexBuffer, 0, data.indices);
-    indexCount = data.indices.length;
+    
+    const indices = params.wireframe ? data.indicesLine : data.indicesTri;
+    device.queue.writeBuffer(indexBuffer, 0, indices);
+    
+    indexCount = indices.length;
   }
 
   const gui = new GUI({ 
@@ -174,6 +236,7 @@ async function init() {
   gui.add(params, 'radialSegments', 2, 64, 1).onChange(updateGeometry);
   gui.add(params, 'tubularSegments', 3, 100, 1).onChange(updateGeometry);
   gui.add(params, 'arc', 0, 2).name('arc (x PI)').onChange(updateGeometry);
+  gui.add(params, 'wireframe').name('Wireframe').onChange(updateGeometry);
 
   updateGeometry();
 
@@ -205,7 +268,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(params.wireframe ? pipelineWireframe : pipelineSolid);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
