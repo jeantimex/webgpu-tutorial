@@ -42,6 +42,9 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 34 | [Loading OBJ Model](34-obj-model.md) | Parse and render a 3D model (Utah Teapot) from an OBJ file. |
 | 35 | [Sphere Geometry](35-sphere-geometry.md) | Generate configurable sphere geometry (radius, segments, partial arcs) algorithmically. |
 | 36 | [Box Geometry](36-box-geometry.md) | Generate a box with configurable width, height, depth, and segments. |
+| 37 | [Cylinder Geometry](37-cylinder-geometry.md) | Generate configurable cylinders, cones, and tubes. |
+| 38 | [Torus Geometry](38-torus-geometry.md) | Generate a donut shape using two radii and segment counts. |
+| 39 | [Torus Knot Geometry](39-torus-knot-geometry.md) | Generate complex, interlinked torus knots using parametric equations. |
 
 ## Getting Started
 
