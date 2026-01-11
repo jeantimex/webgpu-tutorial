@@ -21,14 +21,18 @@ fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
+fn fs_wireframe() -> @location(0) vec4f {
   return vec4f(1.0, 1.0, 1.0, 1.0); // White lines
+}
+
+@fragment
+fn fs_solid() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 0.5); // Transparent Red
 }
 `;
 
 // Procedural Sphere Generator
-// Generates LINE indices that show the triangle structure
-function createSphereTriangulatedWireframe(
+function createSphereGeometry(
   radius: number,
   widthSegments: number,
   heightSegments: number,
@@ -38,7 +42,8 @@ function createSphereTriangulatedWireframe(
   thetaLength: number
 ) {
   const positions: number[] = [];
-  const indices: number[] = [];
+  const indicesLine: number[] = [];
+  const indicesTri: number[] = [];
 
   const grid: number[][] = [];
 
@@ -60,7 +65,7 @@ function createSphereTriangulatedWireframe(
     grid.push(verticesRow);
   }
 
-  // Generate indices (Line List)
+  // Generate indices
   for (let iy = 0; iy < heightSegments; iy++) {
     for (let ix = 0; ix < widthSegments; ix++) {
       const a = grid[iy][ix + 1];
@@ -68,29 +73,28 @@ function createSphereTriangulatedWireframe(
       const c = grid[iy + 1][ix];
       const d = grid[iy + 1][ix + 1];
 
-      // To show the triangle structure, we draw the edges of the two triangles
-      // forming the quad: (b, c, d) and (b, d, a)
-      
-      // Horizontal (Top)
-      indices.push(b, a);
-      // Vertical (Left)
-      indices.push(b, c);
-      // Diagonal (Splitting the quad)
-      indices.push(b, d);
+      // --- Wireframe (Line List) ---
+      indicesLine.push(b, a); // Top
+      indicesLine.push(b, c); // Left
+      indicesLine.push(b, d); // Diagonal
 
-      // Bottom and Right edges for the very last segments
-      if (iy === heightSegments - 1) {
-          indices.push(c, d);
+      if (iy === heightSegments - 1) indicesLine.push(c, d);
+      if (ix === widthSegments - 1) indicesLine.push(a, d);
+
+      // --- Solid (Triangle List) ---
+      if (iy !== heightSegments - 1 || (thetaStart + thetaLength) < Math.PI - 0.0001) {
+        indicesTri.push(b, c, d);
       }
-      if (ix === widthSegments - 1) {
-          indices.push(a, d);
+      if (iy !== 0 || thetaStart > 0.0001) {
+        indicesTri.push(b, d, a);
       }
     }
   }
 
   return {
     positions: new Float32Array(positions),
-    indices: new Uint16Array(indices),
+    indicesLine: new Uint16Array(indicesLine),
+    indicesTri: new Uint16Array(indicesTri),
   };
 }
 
@@ -98,11 +102,22 @@ async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  // --- Pipeline ---
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  // --- Layout ---
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    }],
+  });
+
+  // --- Pipeline 1: Wireframe ---
+  const pipelineWireframe = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: shaderModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 12,
@@ -110,8 +125,8 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
-      entryPoint: "fs_main",
+      module: shaderModule,
+      entryPoint: "fs_wireframe",
       targets: [{ format: canvasFormat }],
     },
     primitive: { topology: "line-list" },
@@ -122,9 +137,47 @@ async function init() {
     },
   });
 
+  // --- Pipeline 2: Solid (Transparent Red) ---
+  const pipelineSolid = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 12,
+        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_solid",
+      targets: [{
+        format: canvasFormat,
+        blend: {
+          color: {
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+            operation: "add",
+          },
+          alpha: {
+            srcFactor: "one",
+            dstFactor: "zero",
+            operation: "add",
+          },
+        },
+      }],
+    },
+    primitive: { topology: "triangle-list", cullMode: "none" },
+    depthStencil: {
+      depthWriteEnabled: false, // Don't block background pixels
+      depthCompare: "less",
+      format: "depth24plus",
+    },
+  });
+
   // --- Buffers ---
   const maxVerts = 100000;
-  const maxIndices = 300000; // Increased for diagonals
+  const maxIndices = 600000; 
   
   const vertexBuffer = device.createBuffer({
     size: maxVerts * 12,
@@ -150,7 +203,7 @@ async function init() {
   });
 
   const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout,
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
@@ -163,12 +216,13 @@ async function init() {
     phiLength: 2,
     thetaStart: 0,
     thetaLength: 1,
+    wireframe: true,
   };
 
   let indexCount = 0;
 
   function updateGeometry() {
-    const data = createSphereTriangulatedWireframe(
+    const data = createSphereGeometry(
       params.radius,
       params.widthSegments,
       params.heightSegments,
@@ -179,8 +233,11 @@ async function init() {
     );
     
     device.queue.writeBuffer(vertexBuffer, 0, data.positions);
-    device.queue.writeBuffer(indexBuffer, 0, data.indices);
-    indexCount = data.indices.length;
+    
+    const indices = params.wireframe ? data.indicesLine : data.indicesTri;
+    device.queue.writeBuffer(indexBuffer, 0, indices);
+    
+    indexCount = indices.length;
   }
 
   const gui = new GUI({ 
@@ -194,6 +251,7 @@ async function init() {
   gui.add(params, 'phiLength', 0, 2).name('phiLength (x PI)').onChange(updateGeometry);
   gui.add(params, 'thetaStart', 0, 1).name('thetaStart (x PI)').onChange(updateGeometry);
   gui.add(params, 'thetaLength', 0, 1).name('thetaLength (x PI)').onChange(updateGeometry);
+  gui.add(params, 'wireframe').name('Wireframe').onChange(updateGeometry);
 
   updateGeometry();
 
@@ -225,7 +283,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(params.wireframe ? pipelineWireframe : pipelineSolid);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
