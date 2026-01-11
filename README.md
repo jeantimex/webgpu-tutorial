@@ -46,6 +46,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 38 | [Torus Geometry](38-torus-geometry.md) | Generate a donut shape using two radii and segment counts. |
 | 39 | [Torus Knot Geometry](39-torus-knot-geometry.md) | Generate complex, interlinked torus knots using parametric equations. |
 | 40 | [Cone Geometry](40-cone-geometry.md) | Generate a cone shape (a cylinder with zero top radius). |
+| 41 | [Plane Geometry](41-plane-geometry.md) | Generate a flat 2D grid oriented in 3D space. |
 
 ## Getting Started
 
