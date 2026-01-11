@@ -35,7 +35,8 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 27 | [Cube Face Colors](27-cube-face-colors.md) | Learn how to handle distinct face attributes by splitting shared vertices. |
 | 28 | [Textured Cube](28-textured-cube.md) | Map a 2D image onto 3D geometry using UV coordinates and samplers. |
 | 29 | [Texture Atlas](29-texture-atlas.md) | Use a single texture with multiple regions to map different images to each face of a cube. |
-| 30 | [Directional Light](30-basic-lighting.md) | Implement Diffuse (Lambertian) lighting using surface normals and dot products. |
+| 30 | [Directional Light](30-directional-light.md) | Implement Diffuse (Lambertian) lighting using surface normals and dot products. |
+| 31 | [Ambient Light](31-ambient-light.md) | Learn about global background lighting that affects all surfaces equally. |
 
 ## Getting Started
 

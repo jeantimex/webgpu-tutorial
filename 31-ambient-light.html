@@ -3,13 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>30. Directional Light</title>
+    <title>31. Ambient Light</title>
     <link rel="stylesheet" href="./src/styles/common.css" />
+    <style>
+      #gui-container {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+      }
+    </style>
   </head>
   <body>
     <div id="canvas-container">
       <canvas id="webgpu-canvas" width="800" height="600"></canvas>
+      <div id="gui-container"></div>
     </div>
-    <script type="module" src="./src/30-basic-lighting.ts"></script>
+    <script type="module" src="./src/31-ambient-light.ts"></script>
   </body>
 </html>
