@@ -1,6 +1,6 @@
 # Indexed Cube
 
-In the previous [Hello Cube](25-hello-cube.html) tutorial, we drew a cube using `draw(36)`. Since a cube has 6 faces and each face is made of 2 triangles (6 vertices), we needed $6 \times 6 = 36$ vertices.
+In the previous [Hello Cube](25-hello-cube.html) tutorial, we drew a cube using `draw(36)`. Since a cube has 6 faces and each face is made of 2 triangles (6 vertices), we needed 6 * 6 = 36 vertices.
 
 However, a cube only has **8 unique corners** (vertices). If we simply list all triangles, we are repeating the same vertex positions multiple times (e.g., a corner is shared by 3 faces).
 

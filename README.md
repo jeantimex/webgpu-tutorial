@@ -33,6 +33,9 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 25 | [Hello Cube (3D & MVP)](25-hello-cube.md) | Introduce 3D rendering with perspective projection and depth testing. |
 | 26 | [Indexed Cube](26-indexed-cube.md) | Optimize 3D geometry by reusing vertices with index buffers. |
 | 27 | [Cube Face Colors](27-cube-face-colors.md) | Learn how to handle distinct face attributes by splitting shared vertices. |
+| 28 | [Textured Cube](28-textured-cube.md) | Map a 2D image onto 3D geometry using UV coordinates and samplers. |
+| 29 | [Texture Atlas](29-texture-atlas.md) | Use a single texture with multiple regions to map different images to each face of a cube. |
+| 30 | [Directional Light](30-basic-lighting.md) | Implement Diffuse (Lambertian) lighting using surface normals and dot products. |
 
 ## Getting Started
 
