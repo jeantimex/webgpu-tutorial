@@ -21,13 +21,18 @@ fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
+fn fs_wireframe() -> @location(0) vec4f {
   return vec4f(1.0, 1.0, 1.0, 1.0); // White lines
+}
+
+@fragment
+fn fs_solid() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 0.5); // Transparent Red
 }
 `;
 
 // Procedural Torus Knot Generator
-function createTorusKnotWireframe(
+function createTorusKnotGeometry(
   radius: number = 1,
   tube: number = 0.4,
   tubularSegments: number = 64,
@@ -36,7 +41,8 @@ function createTorusKnotWireframe(
   q: number = 3
 ) {
   const positions: number[] = [];
-  const indices: number[] = [];
+  const indicesLine: number[] = [];
+  const indicesTri: number[] = [];
 
   // Helper to get position on the knot curve at angle u (0..2PI)
   function getKnotPosition(u: number) {
@@ -79,7 +85,7 @@ function createTorusKnotWireframe(
     }
   }
 
-  // Generate Indices (Line List)
+  // Generate Indices
   for (let i = 0; i < tubularSegments; i++) {
     for (let j = 0; j < radialSegments; j++) {
       const a = (radialSegments + 1) * i + j;
@@ -87,17 +93,21 @@ function createTorusKnotWireframe(
       const c = (radialSegments + 1) * (i + 1) + j + 1;
       const d = (radialSegments + 1) * i + j + 1;
 
-      // Vertical line (along tube)
-      indices.push(a, b);
-      
-      // Horizontal line (around tube)
-      indices.push(a, d);
+      // --- Wireframe (Line List) ---
+      indicesLine.push(a, b); // Vertical
+      indicesLine.push(a, d); // Horizontal
+      indicesLine.push(a, c); // Diagonal
+
+      // --- Solid (Triangle List) ---
+      indicesTri.push(a, b, d);
+      indicesTri.push(b, c, d);
     }
   }
 
   return {
     positions: new Float32Array(positions),
-    indices: new Uint16Array(indices),
+    indicesLine: new Uint16Array(indicesLine),
+    indicesTri: new Uint16Array(indicesTri),
   };
 }
 
@@ -105,11 +115,22 @@ async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  // --- Pipeline ---
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  // --- Layout ---
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    }],
+  });
+
+  // --- Pipeline 1: Wireframe ---
+  const pipelineWireframe = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: shaderModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 12,
@@ -117,8 +138,8 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
-      entryPoint: "fs_main",
+      module: shaderModule,
+      entryPoint: "fs_wireframe",
       targets: [{ format: canvasFormat }],
     },
     primitive: { topology: "line-list" },
@@ -129,9 +150,47 @@ async function init() {
     },
   });
 
+  // --- Pipeline 2: Solid (Transparent) ---
+  const pipelineSolid = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 12,
+        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_solid",
+      targets: [{
+        format: canvasFormat,
+        blend: {
+          color: {
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+            operation: "add",
+          },
+          alpha: {
+            srcFactor: "one",
+            dstFactor: "zero",
+            operation: "add",
+          },
+        },
+      }],
+    },
+    primitive: { topology: "triangle-list", cullMode: "none" },
+    depthStencil: {
+      depthWriteEnabled: false,
+      depthCompare: "less",
+      format: "depth24plus",
+    },
+  });
+
   // --- Buffers ---
   const maxVerts = 100000;
-  const maxIndices = 200000;
+  const maxIndices = 600000;
   
   const vertexBuffer = device.createBuffer({
     size: maxVerts * 12,
@@ -157,7 +216,7 @@ async function init() {
   });
 
   const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout,
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
@@ -169,12 +228,13 @@ async function init() {
     radialSegments: 8,
     p: 2,
     q: 3,
+    wireframe: true,
   };
 
   let indexCount = 0;
 
   function updateGeometry() {
-    const data = createTorusKnotWireframe(
+    const data = createTorusKnotGeometry(
       params.radius,
       params.tube,
       Math.floor(params.tubularSegments),
@@ -184,8 +244,11 @@ async function init() {
     );
     
     device.queue.writeBuffer(vertexBuffer, 0, data.positions);
-    device.queue.writeBuffer(indexBuffer, 0, data.indices);
-    indexCount = data.indices.length;
+    
+    const indices = params.wireframe ? data.indicesLine : data.indicesTri;
+    device.queue.writeBuffer(indexBuffer, 0, indices);
+    
+    indexCount = indices.length;
   }
 
   const gui = new GUI({ 
@@ -198,6 +261,7 @@ async function init() {
   gui.add(params, 'radialSegments', 3, 32, 1).onChange(updateGeometry);
   gui.add(params, 'p', 1, 10, 1).name('P (Winds)').onChange(updateGeometry);
   gui.add(params, 'q', 1, 10, 1).name('Q (Loops)').onChange(updateGeometry);
+  gui.add(params, 'wireframe').name('Wireframe').onChange(updateGeometry);
 
   updateGeometry();
 
@@ -229,7 +293,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(params.wireframe ? pipelineWireframe : pipelineSolid);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
