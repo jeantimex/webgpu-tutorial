@@ -21,14 +21,19 @@ fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
+fn fs_wireframe() -> @location(0) vec4f {
   return vec4f(1.0, 1.0, 1.0, 1.0); // White lines
+}
+
+@fragment
+fn fs_solid() -> @location(0) vec4f {
+  return vec4f(1.0, 0.0, 0.0, 0.5); // Transparent Red
 }
 `;
 
-// Procedural Cone Generator (Wireframe)
+// Procedural Cone Generator
 // A cone is just a cylinder with radiusTop = 0
-function createConeWireframe(
+function createConeGeometry(
   radius: number = 1,
   height: number = 2,
   radialSegments: number = 32,
@@ -38,7 +43,8 @@ function createConeWireframe(
   thetaLength: number = Math.PI * 2
 ) {
   const positions: number[] = [];
-  const indices: number[] = [];
+  const indicesLine: number[] = [];
+  const indicesTri: number[] = [];
   let index = 0;
   const indexArray: number[][] = [];
 
@@ -73,20 +79,24 @@ function createConeWireframe(
       const c = indexArray[y + 1][x + 1];
       const d = indexArray[y][x + 1];
 
-      // Vertical line
-      indices.push(a, b);
-      // Horizontal line (Bottom of this quad)
-      indices.push(b, c);
-      // Top horizontal line
-      indices.push(a, d);
-      // Right vertical line
-      indices.push(d, c);
-      // Diagonal
-      indices.push(a, c);
+      // --- Wireframe ---
+      indicesLine.push(a, b); // Vertical
+      indicesLine.push(b, c); // Horizontal (Bottom)
+      if (y === 0) indicesLine.push(a, d); // Top Horizontal (only if visible, but at top it's a point)
+      indicesLine.push(d, c); // Right Vertical
+      indicesLine.push(a, c); // Diagonal
+
+      // --- Solid ---
+      // For the top row (y=0) of a cone, 'a' and 'd' are the same point (apex).
+      // Triangle `a, b, d` is degenerate. We only need `b, c, d`.
+      if (y !== 0) {
+        indicesTri.push(a, b, d);
+      }
+      indicesTri.push(b, c, d);
     }
   }
 
-  // 2. Generate Cap (Bottom only, since Top is a point)
+  // 2. Generate Cap (Bottom only)
   if (!openEnded && radiusBottom > 0) {
     generateCap();
   }
@@ -113,19 +123,23 @@ function createConeWireframe(
       
       const current = index++;
       
-      // Draw line to center
-      indices.push(centerIndex, current);
-      
-      // Draw perimeter line (connecting to previous ring vertex)
+      // --- Wireframe ---
+      indicesLine.push(centerIndex, current);
       if (x > 0) {
-        indices.push(current - 1, current);
+        indicesLine.push(current - 1, current);
+      }
+
+      // --- Solid ---
+      if (x > 0) {
+        indicesTri.push(centerIndex, current, current - 1);
       }
     }
   }
 
   return {
     positions: new Float32Array(positions),
-    indices: new Uint16Array(indices),
+    indicesLine: new Uint16Array(indicesLine),
+    indicesTri: new Uint16Array(indicesTri),
   };
 }
 
@@ -133,11 +147,22 @@ async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  // --- Pipeline ---
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  // --- Layout ---
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    }],
+  });
+
+  // --- Pipeline 1: Wireframe ---
+  const pipelineWireframe = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: shaderModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 12,
@@ -145,8 +170,8 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
-      entryPoint: "fs_main",
+      module: shaderModule,
+      entryPoint: "fs_wireframe",
       targets: [{ format: canvasFormat }],
     },
     primitive: { topology: "line-list" },
@@ -157,9 +182,47 @@ async function init() {
     },
   });
 
+  // --- Pipeline 2: Solid (Transparent) ---
+  const pipelineSolid = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 12,
+        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_solid",
+      targets: [{
+        format: canvasFormat,
+        blend: {
+          color: {
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+            operation: "add",
+          },
+          alpha: {
+            srcFactor: "one",
+            dstFactor: "zero",
+            operation: "add",
+          },
+        },
+      }],
+    },
+    primitive: { topology: "triangle-list", cullMode: "none" },
+    depthStencil: {
+      depthWriteEnabled: false,
+      depthCompare: "less",
+      format: "depth24plus",
+    },
+  });
+
   // --- Buffers ---
   const maxVerts = 100000;
-  const maxIndices = 200000;
+  const maxIndices = 600000;
   
   const vertexBuffer = device.createBuffer({
     size: maxVerts * 12,
@@ -185,7 +248,7 @@ async function init() {
   });
 
   const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout,
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
@@ -198,12 +261,13 @@ async function init() {
     openEnded: false,
     thetaStart: 0,
     thetaLength: 2, // x PI
+    wireframe: true,
   };
 
   let indexCount = 0;
 
   function updateGeometry() {
-    const data = createConeWireframe(
+    const data = createConeGeometry(
       params.radius,
       params.height,
       Math.floor(params.radialSegments),
@@ -214,8 +278,11 @@ async function init() {
     );
     
     device.queue.writeBuffer(vertexBuffer, 0, data.positions);
-    device.queue.writeBuffer(indexBuffer, 0, data.indices);
-    indexCount = data.indices.length;
+    
+    const indices = params.wireframe ? data.indicesLine : data.indicesTri;
+    device.queue.writeBuffer(indexBuffer, 0, indices);
+    
+    indexCount = indices.length;
   }
 
   const gui = new GUI({ 
@@ -229,6 +296,7 @@ async function init() {
   gui.add(params, 'openEnded').onChange(updateGeometry);
   gui.add(params, 'thetaStart', 0, 2).name('thetaStart (x PI)').onChange(updateGeometry);
   gui.add(params, 'thetaLength', 0, 2).name('thetaLength (x PI)').onChange(updateGeometry);
+  gui.add(params, 'wireframe').name('Wireframe').onChange(updateGeometry);
 
   updateGeometry();
 
@@ -260,7 +328,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(params.wireframe ? pipelineWireframe : pipelineSolid);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
