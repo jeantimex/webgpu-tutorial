@@ -45,6 +45,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 37 | [Cylinder Geometry](37-cylinder-geometry.md) | Generate configurable cylinders, cones, and tubes. |
 | 38 | [Torus Geometry](38-torus-geometry.md) | Generate a donut shape using two radii and segment counts. |
 | 39 | [Torus Knot Geometry](39-torus-knot-geometry.md) | Generate complex, interlinked torus knots using parametric equations. |
+| 40 | [Cone Geometry](40-cone-geometry.md) | Generate a cone shape (a cylinder with zero top radius). |
 
 ## Getting Started
 
