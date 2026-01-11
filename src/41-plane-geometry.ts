@@ -27,7 +27,7 @@ fn fs_wireframe() -> @location(0) vec4f {
 
 @fragment
 fn fs_solid() -> @location(0) vec4f {
-  return vec4f(1.0, 0.0, 0.0, 0.5); // Transparent Red
+  return vec4f(1.0, 0.0, 0.0, 1.0); // Solid Red
 }
 `;
 
@@ -137,7 +137,7 @@ async function init() {
     },
   });
 
-  // --- Pipeline 2: Solid (Transparent) ---
+  // --- Pipeline 2: Solid (Opaque) ---
   const pipelineSolid = device.createRenderPipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [bindGroupLayout],
@@ -153,21 +153,7 @@ async function init() {
     fragment: {
       module: shaderModule,
       entryPoint: "fs_solid",
-      targets: [{
-        format: canvasFormat,
-        blend: {
-          color: {
-            srcFactor: "src-alpha",
-            dstFactor: "one-minus-src-alpha",
-            operation: "add",
-          },
-          alpha: {
-            srcFactor: "one",
-            dstFactor: "zero",
-            operation: "add",
-          },
-        },
-      }],
+      targets: [{ format: canvasFormat }], // No blend needed
     },
     primitive: { topology: "triangle-list", cullMode: "none" }, // Double-sided
     depthStencil: {
