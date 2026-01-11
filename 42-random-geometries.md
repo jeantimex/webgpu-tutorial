@@ -1,4 +1,4 @@
-# 42. Random Geometries (Instancing)
+# 42. Random Geometries (Instancing) (Instancing)
 
 In this tutorial, we push WebGPU to its limits by rendering up to **1,000,000** distinct objects at 60 FPS.
 
