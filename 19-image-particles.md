@@ -1,4 +1,4 @@
-# 19. Image Particles (Mona Lisa)
+# 19. Image Particles
 
 In this tutorial, we will push our particle system further by using an image to drive the colors and target positions of our particles. We'll recreate the famous **Mona Lisa** using 90,000+ particles and add an interactive "explosion" effect.
 

@@ -15,10 +15,10 @@ In this tutorial, we will implement a **Boids Simulation**, an artificial life p
 2.  **Alignment**: Boids try to match the velocity (speed and direction) of their neighbors.
 3.  **Separation**: Boids try to keep a minimum distance from others to avoid crashing.
 
-## 2. $O(n^2)$ on the GPU
+## 2. O(n^2) on the GPU
 
 In our simulation of 1,500 boids, each boid must check every other boid.
-- **CPU approach**: A simple nested loop would take $1500 \times 1500 = 2,250,000$ operations per frame. This can quickly slow down as the number of boids increases.
+- **CPU approach**: A simple nested loop would take 1500 * 1500 = 2,250,000 operations per frame. This can quickly slow down as the number of boids increases.
 - **GPU approach**: We launch 1,500 parallel threads. Each thread performs 1,500 checks simultaneously. WebGPU handles millions of these checks effortlessly.
 
 ## 3. Rotating Triangles in the Shader

@@ -24,7 +24,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 16 | [Switching Vertex Buffers](16-switching-vertex-buffers.md) | Learn how to reuse a pipeline while switching geometry data. |
 | 17 | [Simple Compute Shader](17-simple-compute.md) | Learn how to use Compute Shaders for GPGPU tasks by multiplying arrays. |
 | 18 | [Particle System](18-particle-system.md) | Combine Compute and Render pipelines to simulate and draw thousands of particles. |
-| 19 | [Image Particles (Mona Lisa)](19-image-particles.md) | Use image data to drive particle colors and target positions for an interactive effect. |
+| 19 | [Image Particles](19-image-particles.md) | Use image data to drive particle colors and target positions for an interactive effect. |
 | 20 | [Image Processing](20-image-processing.md) | Manipulate image pixels directly using storage textures and compute shaders. |
 | 21 | [Game of Life](21-game-of-life.md) | Implement cellular automata using double buffering and toroidal coordinates. |
 | 22 | [Optimized Blur](22-shared-memory-blur.md) | Use workgroup shared memory to significantly reduce memory bandwidth for image filters. |
@@ -33,6 +33,12 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 25 | [Hello Cube (3D & MVP)](25-hello-cube.md) | Introduce 3D rendering with perspective projection and depth testing. |
 | 26 | [Indexed Cube](26-indexed-cube.md) | Optimize 3D geometry by reusing vertices with index buffers. |
 | 27 | [Cube Face Colors](27-cube-face-colors.md) | Learn how to handle distinct face attributes by splitting shared vertices. |
+| 28 | [Textured Cube](28-textured-cube.md) | Map a 2D image onto 3D geometry using UV coordinates and samplers. |
+| 29 | [Texture Atlas](29-texture-atlas.md) | Use a single texture with multiple regions to map different images to each face of a cube. |
+| 30 | [Directional Light](30-directional-light.md) | Implement Diffuse (Lambertian) lighting using surface normals and dot products. |
+| 31 | [Ambient Light](31-ambient-light.md) | Learn about global background lighting that affects all surfaces equally. |
+| 32 | [Point Light](32-point-light.md) | Simulate a light source with a specific position that radiates light in all directions. |
+| 33 | [Combined Lighting](33-combined-lighting.md) | Combine Ambient, Directional, and Point lights with Specular highlights (Blinn-Phong). |
 
 ## Getting Started
 
