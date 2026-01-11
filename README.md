@@ -40,6 +40,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 32 | [Point Light](32-point-light.md) | Simulate a light source with a specific position that radiates light in all directions. |
 | 33 | [Combined Lighting](33-combined-lighting.md) | Combine Ambient, Directional, and Point lights with Specular highlights (Blinn-Phong). |
 | 34 | [Loading OBJ Model](34-obj-model.md) | Parse and render a 3D model (Utah Teapot) from an OBJ file. |
+| 35 | [Sphere Wireframe](35-sphere-wireframe.md) | Generate configurable sphere geometry (radius, segments, partial arcs) algorithmically. |
 
 ## Getting Started
 
