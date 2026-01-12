@@ -12,6 +12,7 @@ struct LightUniforms {
   ambientColor : vec4f,
   dirLightDirection : vec4f,
   dirLightColor : vec4f,
+  lightViewProjectionMatrix : mat4x4f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -20,6 +21,7 @@ struct LightUniforms {
 struct VertexOutput {
   @builtin(position) position : vec4f,
   @location(0) normal : vec3f,
+  @location(1) shadowPos : vec3f,
 }
 
 @vertex
@@ -28,7 +30,8 @@ fn vs_main(
   @location(1) normal : vec3f
 ) -> VertexOutput {
   var out : VertexOutput;
-  out.position = uniforms.viewProjectionMatrix * uniforms.modelMatrix * vec4f(pos, 1.0);
+  let worldPos = uniforms.modelMatrix * vec4f(pos, 1.0);
+  out.position = uniforms.viewProjectionMatrix * worldPos;
   
   // Transform normal to world space (using 3x3 part of model matrix for uniform scaling)
   // For non-uniform scaling, we'd need the inverse-transpose of the model matrix.
@@ -36,27 +39,92 @@ fn vs_main(
   // if we normalize, but correct way is to use a normal matrix. 
   // For this tutorial's simplicity with uniform scaling, we'll use the model matrix.
   out.normal = (uniforms.modelMatrix * vec4f(normal, 0.0)).xyz;
+  let posFromLight = lightUniforms.lightViewProjectionMatrix * worldPos;
+  let ndc = posFromLight.xyz / posFromLight.w;
+  out.shadowPos = vec3f(
+    ndc.xy * vec2f(0.5, -0.5) + vec2f(0.5, 0.5),
+    ndc.z
+  );
   
   return out;
 }
 
+@group(0) @binding(2) var shadowMap : texture_depth_2d;
+@group(0) @binding(3) var shadowSampler : sampler_comparison;
+
+const shadowMapSize : f32 = 1024.0;
+
+fn computeShadow(shadowPos : vec3f, normal : vec3f, lightDir : vec3f) -> f32 {
+  let uv = shadowPos.xy;
+  let depth = shadowPos.z;
+  let inBounds = select(0.0, 1.0,
+    uv.x >= 0.0 && uv.x <= 1.0 &&
+    uv.y >= 0.0 && uv.y <= 1.0 &&
+    depth >= 0.0 && depth <= 1.0
+  );
+  let uvClamped = clamp(uv, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
+  let depthClamped = clamp(depth, 0.0, 1.0);
+  let bias = max(0.004 * (1.0 - dot(normal, lightDir)), 0.001);
+  let texelSize = 1.0 / shadowMapSize;
+
+  var visibility = 0.0;
+  for (var y = -1; y <= 1; y++) {
+    for (var x = -1; x <= 1; x++) {
+      let offset = vec2f(vec2(x, y)) * texelSize;
+      visibility += textureSampleCompare(
+        shadowMap,
+        shadowSampler,
+        uvClamped + offset,
+        depthClamped - bias
+      );
+    }
+  }
+  visibility = visibility / 9.0;
+  return mix(1.0, visibility, inBounds);
+}
+
 @fragment
-fn fs_main(@location(0) normal : vec3f) -> @location(0) vec4f {
-  let N = normalize(normal);
+fn fs_main(in : VertexOutput) -> @location(0) vec4f {
+  let N = normalize(in.normal);
   
   // Ambient
-  let ambient = lightUniforms.ambientColor.rgb * 0.2; // 0.2 strength
+  let ambient = lightUniforms.ambientColor.rgb * 0.3; // 0.3 strength
   
   // Directional
   let L = normalize(-lightUniforms.dirLightDirection.xyz);
   let diff = max(dot(N, L), 0.0);
   let diffuse = diff * lightUniforms.dirLightColor.rgb;
+
+  let shadow = computeShadow(in.shadowPos, N, L);
   
   // Combine
-  let lighting = ambient + diffuse;
+  let lighting = ambient + diffuse * shadow;
   let finalColor = uniforms.color.rgb * lighting;
   
   return vec4f(finalColor, uniforms.color.a);
+}
+`;
+
+const shadowShaderCode = `
+struct Uniforms {
+  viewProjectionMatrix : mat4x4f,
+  modelMatrix : mat4x4f,
+  color : vec4f,
+}
+
+struct LightUniforms {
+  ambientColor : vec4f,
+  dirLightDirection : vec4f,
+  dirLightColor : vec4f,
+  lightViewProjectionMatrix : mat4x4f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<uniform> lightUniforms : LightUniforms;
+
+@vertex
+fn vs_shadow(@location(0) pos : vec3f) -> @builtin(position) vec4f {
+  return lightUniforms.lightViewProjectionMatrix * uniforms.modelMatrix * vec4f(pos, 1.0);
 }
 `;
 
@@ -180,21 +248,29 @@ async function init() {
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
   const shaderModule = device.createShaderModule({ code: shaderCode });
+  const shadowShaderModule = device.createShaderModule({ code: shadowShaderCode });
 
   // --- Buffers Setup ---
   
   // 1. Light Uniforms (Static for now)
-  // Ambient(16) + Direction(16) + Color(16) = 48 bytes -> aligned to 16
+  // Ambient(16) + Direction(16) + Color(16) + LightVP(64) = 112 bytes -> aligned to 16
   const lightUniformBuffer = device.createBuffer({
-    size: 48,
+    size: 112,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const lightData = new Float32Array([
-    1.0, 1.0, 1.0, 1.0,  // Ambient Color (White)
-    -0.5, -0.8, -0.2, 0.0, // Direction (Normalized later in shader, but better here)
-    1.0, 1.0, 1.0, 1.0,  // Light Color (White)
-  ]);
+  // 45-degree elevation above the cube, coming from +X toward the origin
+  const lightDir = vec3.normalize([-1.0, -1.0, 0.0]);
+  const lightPos = vec3.scale(lightDir, -10);
+  const lightViewMatrix = mat4.lookAt(lightPos, [0, 0, 0], [0, 1, 0]);
+  const lightProjectionMatrix = mat4.ortho(-12, 12, -12, 12, 0.1, 30);
+  const lightViewProjectionMatrix = mat4.multiply(lightProjectionMatrix, lightViewMatrix);
+
+  const lightData = new Float32Array(28);
+  lightData.set([1.0, 1.0, 1.0, 1.0], 0); // Ambient Color (White)
+  lightData.set([lightDir[0], lightDir[1], lightDir[2], 0.0], 4);
+  lightData.set([1.0, 1.0, 1.0, 1.0], 8); // Light Color (White)
+  lightData.set(lightViewProjectionMatrix as Float32Array, 12);
   device.queue.writeBuffer(lightUniformBuffer, 0, lightData);
 
   // 2. Object Uniforms (Dynamic)
@@ -221,30 +297,62 @@ async function init() {
       },
       {
         binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: "uniform" },
-      }
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: "depth" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: "comparison" },
+      },
     ],
   });
 
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
+  const shadowBindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
-        resource: {
-          buffer: objectUniformBuffer,
-          size: 144, 
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "uniform",
+          hasDynamicOffset: true,
+          minBindingSize: 144,
         },
       },
       {
         binding: 1,
-        resource: { buffer: lightUniformBuffer },
-      }
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
     ],
   });
 
   // --- Pipeline ---
+  const shadowPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [shadowBindGroupLayout] }),
+    vertex: {
+      module: shadowShaderModule,
+      entryPoint: "vs_shadow",
+      buffers: [
+        {
+          arrayStride: 12, // Position
+          attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
+        },
+      ],
+    },
+    primitive: { topology: "triangle-list", cullMode: "back" },
+    depthStencil: {
+      depthWriteEnabled: true,
+      depthCompare: "less",
+      format: "depth32float",
+    },
+  });
+
   const pipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
@@ -304,6 +412,63 @@ async function init() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
+  const SHADOW_MAP_SIZE = 1024;
+  const shadowDepthTexture = device.createTexture({
+    size: [SHADOW_MAP_SIZE, SHADOW_MAP_SIZE],
+    format: "depth32float",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
+  const shadowDepthView = shadowDepthTexture.createView();
+  const shadowSampler = device.createSampler({
+    compare: "less",
+    magFilter: "linear",
+    minFilter: "linear",
+    addressModeU: "clamp-to-edge",
+    addressModeV: "clamp-to-edge",
+  });
+
+  const shadowBindGroup = device.createBindGroup({
+    layout: shadowBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: objectUniformBuffer,
+          size: 144,
+        },
+      },
+      {
+        binding: 1,
+        resource: { buffer: lightUniformBuffer },
+      },
+    ],
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: objectUniformBuffer,
+          size: 144, 
+        },
+      },
+      {
+        binding: 1,
+        resource: { buffer: lightUniformBuffer },
+      },
+      {
+        binding: 2,
+        resource: shadowDepthView,
+      },
+      {
+        binding: 3,
+        resource: shadowSampler,
+      },
+    ],
+  });
+
   // --- Scene State ---
   const aspect = canvas.width / canvas.height;
   const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
@@ -332,6 +497,28 @@ async function init() {
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
+
+    const shadowPass = commandEncoder.beginRenderPass({
+      colorAttachments: [],
+      depthStencilAttachment: {
+        view: shadowDepthView,
+        depthClearValue: 1.0,
+        depthLoadOp: "clear",
+        depthStoreOp: "store",
+      },
+    });
+
+    shadowPass.setPipeline(shadowPipeline);
+    shadowPass.setBindGroup(0, shadowBindGroup, [0]);
+    shadowPass.setVertexBuffer(0, planePosBuffer);
+    shadowPass.setIndexBuffer(planeIndexBuffer, "uint16");
+    shadowPass.drawIndexed(planeGeo.indices.length);
+
+    shadowPass.setBindGroup(0, shadowBindGroup, [UNIFORM_ALIGNMENT]);
+    shadowPass.setVertexBuffer(0, boxPosBuffer);
+    shadowPass.setIndexBuffer(boxIndexBuffer, "uint16");
+    shadowPass.drawIndexed(boxGeo.indices.length);
+    shadowPass.end();
 
     const renderPass = commandEncoder.beginRenderPass({
       colorAttachments: [{
