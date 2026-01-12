@@ -9,6 +9,8 @@ struct Uniforms {
   lineWidth : f32,
   showWireframe : f32,
   fillOpacity : f32,
+  totalInstances : u32,
+  maxInstances : u32,
 }
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
@@ -58,12 +60,11 @@ fn isVisible(center: vec3f, radius: f32, vp: mat4x4f) -> bool {
 @compute @workgroup_size(64)
 fn cull_main(@builtin(global_invocation_id) global_id : vec3u) {
   let index = global_id.x;
-  // Check bounds (assuming hardcoded MAX_INSTANCES or pass as uniform)
-  // We'll use arrayLength to be safe
-  if (index >= arrayLength(&srcInstances)) { return; }
+  // Check bounds using the actual instance count from uniforms
+  if (index >= uniforms.totalInstances) { return; }
 
   let instance = srcInstances[index];
-  
+
   // Calculate bounding sphere
   // Max scale component * base radius (approx 0.5 for our shapes)
   let maxScale = max(instance.scale.x, max(instance.scale.y, instance.scale.z));
@@ -74,12 +75,11 @@ fn cull_main(@builtin(global_invocation_id) global_id : vec3u) {
     // We assume 6 batches of equal size (Chunk Size)
     // To keep it simple, we pass the "batch ID" implicitly via index ranges
     // But we need to write to the correct "Draw" buffer section.
-    
-    // Simplification: We assume the srcInstances are ordered by Mesh.
-    // We calculate the mesh index.
-    let totalInstances = arrayLength(&srcInstances);
-    let chunkSize = (totalInstances + 5) / 6; // Ceil division
-    let meshIndex = index / chunkSize;
+
+    // Assign mesh type using round-robin (index % 6) so all mesh types
+    // are represented even with small instance counts.
+    let meshIndex = index % 6;
+    let chunkSize = uniforms.maxInstances / 6;
     
     // Atomic increment to get the write slot
     // atomicAdd returns the ORIGINAL value
@@ -368,7 +368,7 @@ async function init() {
         // But `drawIndirect`'s `firstInstance` acts as an offset into the attributes IF they are stepMode=instance?
         // Yes. So firstInstance should be MeshIndex * ChunkSize.
         
-        const chunkSize = Math.ceil(MAX_INSTANCES / 6);
+        const chunkSize = Math.floor(MAX_INSTANCES / 6); // Must match shader's integer division
         indirectData[i * 4 + 0] = gpuMeshes[i].vertexCount;
         indirectData[i * 4 + 1] = 0; // Reset count
         indirectData[i * 4 + 2] = 0; // firstVertex
@@ -380,7 +380,7 @@ async function init() {
 
   // 2. Uniforms
   const uniformBuffer = device.createBuffer({
-    size: 80, 
+    size: 96, // mat4x4f(64) + f32*3(12) + u32*2(8) + padding = 96 (16-byte aligned)
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -576,6 +576,7 @@ async function init() {
     
     device.queue.writeBuffer(uniformBuffer, 0, vpMatrix as Float32Array);
     device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([params.lineWidth, params.showWireframe ? 1.0 : 0.0, params.fillOpacity]));
+    device.queue.writeBuffer(uniformBuffer, 76, new Uint32Array([totalCount, MAX_INSTANCES]));
 
     // Reset Indirect Instance Counts (Offsets 4, 20, 36, 52, 68, 84)
     // Structure: vertexCount(0), instanceCount(4), firstVertex(8), firstInstance(12)
