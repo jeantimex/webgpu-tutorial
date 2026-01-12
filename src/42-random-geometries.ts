@@ -8,6 +8,7 @@ struct Uniforms {
   viewProjectionMatrix : mat4x4f,
   lineWidth : f32,
   showWireframe : f32,
+  fillOpacity : f32,
 }
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
@@ -57,10 +58,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
   let wireColor = vec3f(1.0, 1.0, 1.0);
   
   let fillColor = in.color.rgb;
-  let fillOpacity = in.color.a;
 
   let wireAlpha = edge * uniforms.showWireframe;
-  let fillAlpha = fillOpacity * (1.0 - wireAlpha);
+  let fillAlpha = uniforms.fillOpacity * (1.0 - wireAlpha);
   let totalAlpha = wireAlpha + fillAlpha;
 
   if (totalAlpha < 0.01) {
@@ -382,6 +382,7 @@ async function init() {
     count: 1000,
     lineWidth: 1.5,
     showWireframe: true,
+    fillOpacity: 0.5,
   };
 
   function generateInstances() {
@@ -414,7 +415,7 @@ async function init() {
         data[offset + 16] = Math.random();
         data[offset + 17] = Math.random();
         data[offset + 18] = Math.random();
-        data[offset + 19] = 0.5; // Transparency
+        data[offset + 19] = 1.0;
 
         offset += 20;
       }
@@ -429,6 +430,7 @@ async function init() {
   gui.add(params, 'count', [1, 10, 100, 1000, 10000, 100000, 1000000]).name('Object Count');
   gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
   gui.add(params, "showWireframe").name("Show Wireframe");
+  gui.add(params, "fillOpacity", 0.0, 1.0).name("Fill Opacity");
 
   function render() {
     const totalCount = Number(params.count);
@@ -447,8 +449,12 @@ async function init() {
     const vpMatrix = mat4.multiply(projectionMatrix, viewMatrix);
     device.queue.writeBuffer(uniformBuffer, 0, vpMatrix as Float32Array);
     
-    // Write uniforms: vpMatrix (64) + lineWidth (4) + showWireframe (4)
-    device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([params.lineWidth, params.showWireframe ? 1.0 : 0.0]));
+    // Write uniforms: vpMatrix (64) + lineWidth (4) + showWireframe (4) + fillOpacity (4)
+    device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([
+      params.lineWidth,
+      params.showWireframe ? 1.0 : 0.0,
+      params.fillOpacity
+    ]));
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
