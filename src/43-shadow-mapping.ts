@@ -52,7 +52,7 @@ fn vs_main(
 @group(0) @binding(2) var shadowMap : texture_depth_2d;
 @group(0) @binding(3) var shadowSampler : sampler_comparison;
 
-const shadowMapSize : f32 = 1024.0;
+const shadowMapSize : f32 = 2048.0;
 
 fn computeShadow(shadowPos : vec3f, normal : vec3f, lightDir : vec3f) -> f32 {
   let uv = shadowPos.xy;
@@ -259,18 +259,9 @@ async function init() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // 45-degree elevation above the cube, coming from +X toward the origin
-  const lightDir = vec3.normalize([-1.0, -1.0, 0.0]);
-  const lightPos = vec3.scale(lightDir, -10);
-  const lightViewMatrix = mat4.lookAt(lightPos, [0, 0, 0], [0, 1, 0]);
-  const lightProjectionMatrix = mat4.ortho(-12, 12, -12, 12, 0.1, 30);
-  const lightViewProjectionMatrix = mat4.multiply(lightProjectionMatrix, lightViewMatrix);
-
   const lightData = new Float32Array(28);
   lightData.set([1.0, 1.0, 1.0, 1.0], 0); // Ambient Color (White)
-  lightData.set([lightDir[0], lightDir[1], lightDir[2], 0.0], 4);
   lightData.set([1.0, 1.0, 1.0, 1.0], 8); // Light Color (White)
-  lightData.set(lightViewProjectionMatrix as Float32Array, 12);
   device.queue.writeBuffer(lightUniformBuffer, 0, lightData);
 
   // 2. Object Uniforms (Dynamic)
@@ -350,6 +341,9 @@ async function init() {
       depthWriteEnabled: true,
       depthCompare: "less",
       format: "depth32float",
+      depthBias: 1,
+      depthBiasSlopeScale: 2,
+      depthBiasClamp: 0,
     },
   });
 
@@ -412,7 +406,7 @@ async function init() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const SHADOW_MAP_SIZE = 1024;
+  const SHADOW_MAP_SIZE = 2048;
   const shadowDepthTexture = device.createTexture({
     size: [SHADOW_MAP_SIZE, SHADOW_MAP_SIZE],
     format: "depth32float",
@@ -484,7 +478,24 @@ async function init() {
   const planeColor = [0.6, 0.6, 0.6, 1.0]; 
   const boxColor = [1.0, 0.2, 0.2, 1.0];   
 
+  let lightAngle = 0;
+
   function renderFrame() {
+    lightAngle += 0.01;
+    const lightDir = vec3.normalize([
+      Math.cos(lightAngle),
+      -1.0,
+      Math.sin(lightAngle),
+    ]);
+    const lightPos = vec3.scale(lightDir, -10);
+    const lightViewMatrix = mat4.lookAt(lightPos, [0, 0, 0], [0, 1, 0]);
+    const lightProjectionMatrix = mat4.ortho(-12, 12, -12, 12, 0.1, 30);
+    const lightViewProjectionMatrix = mat4.multiply(lightProjectionMatrix, lightViewMatrix);
+
+    lightData.set([lightDir[0], lightDir[1], lightDir[2], 0.0], 4);
+    lightData.set(lightViewProjectionMatrix as Float32Array, 12);
+    device.queue.writeBuffer(lightUniformBuffer, 0, lightData);
+
     // Update Uniforms
     device.queue.writeBuffer(objectUniformBuffer, 0, viewProjectionMatrix as Float32Array);
     device.queue.writeBuffer(objectUniformBuffer, 64, planeModelMatrix as Float32Array);
