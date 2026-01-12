@@ -1,5 +1,5 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4, vec3 } from "wgpu-matrix";
+import { mat4, vec3, quat } from "wgpu-matrix";
 import GUI from "lil-gui";
 
 // --- Shader ---
@@ -13,11 +13,10 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
 struct InstanceInput {
-  @location(2) modelMatrix0 : vec4f,
-  @location(3) modelMatrix1 : vec4f,
-  @location(4) modelMatrix2 : vec4f,
-  @location(5) modelMatrix3 : vec4f,
-  @location(6) color : vec4f,
+  @location(2) translation : vec3f,
+  @location(3) rotation : vec4f, // quaternion
+  @location(4) scale : vec3f,
+  @location(5) color : vec4f,
 }
 
 struct VertexOutput {
@@ -26,18 +25,30 @@ struct VertexOutput {
   @location(1) color : vec4f,
 }
 
+// Helper to create matrix from TRS
+fn composeMatrix(translate: vec3f, rotate: vec4f, scale: vec3f) -> mat4x4f {
+  // Quaternion to Rotation Matrix
+  let x = rotate.x; let y = rotate.y; let z = rotate.z; let w = rotate.w;
+  let x2 = x + x; let y2 = y + y; let z2 = z + z;
+  let xx = x * x2; let xy = x * y2; let xz = x * z2;
+  let yy = y * y2; let yz = y * z2; let zz = z * z2;
+  let wx = w * x2; let wy = w * y2; let wz = w * z2;
+
+  var mat : mat4x4f;
+  mat[0] = vec4f((1.0 - (yy + zz)) * scale.x, (xy + wz) * scale.x, (xz - wy) * scale.x, 0.0);
+  mat[1] = vec4f((xy - wz) * scale.y, (1.0 - (xx + zz)) * scale.y, (yz + wx) * scale.y, 0.0);
+  mat[2] = vec4f((xz + wy) * scale.z, (yz - wx) * scale.z, (1.0 - (xx + yy)) * scale.z, 0.0);
+  mat[3] = vec4f(translate.x, translate.y, translate.z, 1.0);
+  return mat;
+}
+
 @vertex
 fn vs_main(
   @builtin(vertex_index) vertexIndex : u32,
   @location(0) pos : vec3f,
   instance : InstanceInput,
 ) -> VertexOutput {
-  let modelMatrix = mat4x4f(
-    instance.modelMatrix0,
-    instance.modelMatrix1,
-    instance.modelMatrix2,
-    instance.modelMatrix3
-  );
+  let modelMatrix = composeMatrix(instance.translation, instance.rotation, instance.scale);
 
   var out : VertexOutput;
   out.position = uniforms.viewProjectionMatrix * modelMatrix * vec4f(pos, 1.0);
@@ -366,16 +377,15 @@ async function init() {
              { shaderLocation: 0, offset: 0, format: "float32x3" }, // position
           ],
         },
-        // Buffer 1: Instance Matrix (4 * vec4) + Color (vec4) = 5 attributes
+        // Buffer 1: Instance TRS (vec3 + vec4 + vec3) + Color (vec4) = 3 + 4 + 3 + 4 = 14 floats = 56 bytes
         {
-          arrayStride: 80,
+          arrayStride: 56,
           stepMode: "instance",
           attributes: [
-            { shaderLocation: 2, offset: 0, format: "float32x4" },
-            { shaderLocation: 3, offset: 16, format: "float32x4" },
-            { shaderLocation: 4, offset: 32, format: "float32x4" },
-            { shaderLocation: 5, offset: 48, format: "float32x4" },
-            { shaderLocation: 6, offset: 64, format: "float32x4" },
+            { shaderLocation: 2, offset: 0, format: "float32x3" },  // translation
+            { shaderLocation: 3, offset: 12, format: "float32x4" }, // rotation
+            { shaderLocation: 4, offset: 28, format: "float32x3" }, // scale
+            { shaderLocation: 5, offset: 40, format: "float32x4" }, // color
           ],
         },
       ],
@@ -412,8 +422,9 @@ async function init() {
 
   // --- Instance Management ---
   const MAX_INSTANCES = 1000000;
+  // New size: 56 bytes per instance (14 floats)
   const instanceBuffer = device.createBuffer({
-    size: MAX_INSTANCES * 80,
+    size: MAX_INSTANCES * 56, 
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
 
@@ -429,14 +440,15 @@ async function init() {
   updateMeshes();
 
   function generateInstances() {
-    const data = new Float32Array(MAX_INSTANCES * 20);
+    const floatCount = 14; // 3(pos) + 4(rot) + 3(scale) + 4(color)
+    const data = new Float32Array(MAX_INSTANCES * floatCount);
     const range = 100;
     const chunk = Math.floor(MAX_INSTANCES / 6);
     let offset = 0;
-    const tempMat = mat4.create();
     
     for (let m = 0; m < 6; m++) {
       for (let i = 0; i < chunk; i++) {
+        // Position
         const x = (Math.random() - 0.5) * range * 2;
         const y = (Math.random() - 0.5) * range * 2;
         const z = (Math.random() - 0.5) * range * 2;
@@ -444,23 +456,35 @@ async function init() {
         // Scale 5x
         const s = (Math.random() * 1.5 + 1.0) * 5.0;
         
-        const rx = Math.random() * Math.PI;
-        const ry = Math.random() * Math.PI;
+        // Rotation (Quaternion)
+        const axis = vec3.normalize([Math.random()-0.5, Math.random()-0.5, Math.random()-0.5]);
+        const angle = Math.random() * Math.PI * 2;
+        const q = quat.fromAxisAngle(axis, angle);
 
-        mat4.identity(tempMat);
-        mat4.translate(tempMat, [x, y, z], tempMat);
-        mat4.rotateX(tempMat, rx, tempMat);
-        mat4.rotateY(tempMat, ry, tempMat);
-        mat4.scale(tempMat, [s, s, s], tempMat);
-
-        for (let k = 0; k < 16; k++) data[offset + k] = tempMat[k];
+        // Write to buffer
+        // Translation (3)
+        data[offset + 0] = x;
+        data[offset + 1] = y;
+        data[offset + 2] = z;
         
-        data[offset + 16] = Math.random();
-        data[offset + 17] = Math.random();
-        data[offset + 18] = Math.random();
-        data[offset + 19] = 1.0;
+        // Rotation (4)
+        data[offset + 3] = q[0];
+        data[offset + 4] = q[1];
+        data[offset + 5] = q[2];
+        data[offset + 6] = q[3];
 
-        offset += 20;
+        // Scale (3)
+        data[offset + 7] = s;
+        data[offset + 8] = s;
+        data[offset + 9] = s;
+
+        // Color (4)
+        data[offset + 10] = Math.random();
+        data[offset + 11] = Math.random();
+        data[offset + 12] = Math.random();
+        data[offset + 13] = 1.0;
+
+        offset += floatCount;
       }
     }
     
@@ -534,8 +558,8 @@ async function init() {
         renderPass.setVertexBuffer(0, mesh.vertexBuffer);
         
         // Bind the correct section of the instance buffer
-        const byteOffset = m * chunk * 80;
-        renderPass.setVertexBuffer(1, instanceBuffer, byteOffset, count * 80);
+        const byteOffset = m * chunk * 56;
+        renderPass.setVertexBuffer(1, instanceBuffer, byteOffset, count * 56);
         
         renderPass.draw(mesh.vertexCount, count);
         
