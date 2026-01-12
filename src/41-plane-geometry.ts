@@ -5,43 +5,74 @@ import GUI from "lil-gui";
 const shaderCode = `
 struct Uniforms {
   mvpMatrix : mat4x4f,
+  lineWidth : f32,
+  fillOpacity : f32,
+  showWireframe : f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
+  @location(0) barycentric : vec3f,
 }
 
 @vertex
-fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
+fn vs_main(
+  @location(0) pos : vec3f,
+  @location(1) barycentric : vec3f
+) -> VertexOutput {
   var out : VertexOutput;
   out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
+  out.barycentric = barycentric;
   return out;
 }
 
-@fragment
-fn fs_wireframe() -> @location(0) vec4f {
-  return vec4f(1.0, 1.0, 1.0, 1.0); // White lines
+// Edge detection using barycentric coordinates
+fn edgeFactor(bary : vec3f, width : f32) -> f32 {
+  let d = fwidth(bary);
+  let a3 = smoothstep(vec3f(0.0), d * width, bary);
+  return min(min(a3.x, a3.y), a3.z);
 }
 
 @fragment
-fn fs_solid() -> @location(0) vec4f {
-  return vec4f(1.0, 0.0, 0.0, 1.0); // Solid Red
+fn fs_main(@location(0) bary : vec3f) -> @location(0) vec4f {
+  let edge = 1.0 - edgeFactor(bary, uniforms.lineWidth);
+
+  // Wireframe color (white) and fill color (red)
+  let wireColor = vec3f(1.0, 1.0, 1.0);
+  let fillColor = vec3f(1.0, 0.2, 0.2);
+
+  // Calculate wireframe alpha (only if wireframe is enabled)
+  let wireAlpha = edge * uniforms.showWireframe;
+
+  // Composite: wireframe over fill using "over" operator
+  let fillAlpha = uniforms.fillOpacity * (1.0 - wireAlpha);
+  let totalAlpha = wireAlpha + fillAlpha;
+
+  if (totalAlpha < 0.01) {
+    discard;
+  }
+
+  // Premultiplied alpha blend
+  let color = (wireColor * wireAlpha + fillColor * fillAlpha) / totalAlpha;
+
+  return vec4f(color, totalAlpha);
 }
 `;
 
-// Procedural Plane Generator
-// Returns geometry for both Wireframe (Lines) and Solid (Triangles)
+// Procedural Plane Generator with Barycentric Coordinates
 function createPlaneGeometry(
   width: number = 1,
   height: number = 1,
   widthSegments: number = 1,
   heightSegments: number = 1
 ) {
-  const positions: number[] = [];
-  const indicesLine: number[] = [];
-  const indicesTri: number[] = [];
+  // For barycentric coords, we need non-indexed geometry
+  const vertices: number[] = []; // Interleaved: pos(3) + bary(3) = 6 floats per vertex
+
+  // Temporary storage for indexed positions
+  const tempPositions: number[][] = [];
 
   const widthHalf = width / 2;
   const heightHalf = height / 2;
@@ -60,39 +91,37 @@ function createPlaneGeometry(
     const y = iy * segmentHeight - heightHalf;
     for (let ix = 0; ix < gridX1; ix++) {
       const x = ix * segmentWidth - widthHalf;
-      positions.push(x, -y, 0);
+      tempPositions.push([x, -y, 0]);
     }
   }
 
-  // Generate Indices
+  // Helper to add a triangle with barycentric coordinates
+  function addTriangle(aIdx: number, bIdx: number, cIdx: number) {
+    const posA = tempPositions[aIdx];
+    const posB = tempPositions[bIdx];
+    const posC = tempPositions[cIdx];
+
+    vertices.push(posA[0], posA[1], posA[2], 1, 0, 0);
+    vertices.push(posB[0], posB[1], posB[2], 0, 1, 0);
+    vertices.push(posC[0], posC[1], posC[2], 0, 0, 1);
+  }
+
+  // Generate Triangles
   for (let iy = 0; iy < gridY; iy++) {
     for (let ix = 0; ix < gridX; ix++) {
       const a = ix + gridX1 * iy;
       const b = ix + gridX1 * (iy + 1);
-      const c = (ix + 1) + gridX1 * (iy + 1);
-      const d = (ix + 1) + gridX1 * iy;
+      const c = ix + 1 + gridX1 * (iy + 1);
+      const d = ix + 1 + gridX1 * iy;
 
-      // --- Wireframe (Line List) ---
-      // Edges of the two triangles: (a, b, d) and (b, c, d)
-      indicesLine.push(a, b); // Left
-      indicesLine.push(a, d); // Top
-      indicesLine.push(b, d); // Diagonal
-
-      // Closing edges
-      if (ix === gridX - 1) indicesLine.push(d, c); // Right
-      if (iy === gridY - 1) indicesLine.push(b, c); // Bottom
-
-      // --- Solid (Triangle List) ---
-      // Two triangles per quad
-      indicesTri.push(a, b, d);
-      indicesTri.push(b, c, d);
+      addTriangle(a, b, d);
+      addTriangle(b, c, d);
     }
   }
 
   return {
-    positions: new Float32Array(positions),
-    indicesLine: new Uint16Array(indicesLine),
-    indicesTri: new Uint16Array(indicesTri),
+    vertices: new Float32Array(vertices),
+    vertexCount: vertices.length / 6, // 6 floats per vertex (pos + bary)
   };
 }
 
@@ -104,58 +133,53 @@ async function init() {
 
   // --- Layout ---
   const bindGroupLayout = device.createBindGroupLayout({
-    entries: [{
-      binding: 0,
-      visibility: GPUShaderStage.VERTEX,
-      buffer: { type: "uniform" },
-    }],
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
+    ],
   });
 
-  // --- Pipeline 1: Wireframe ---
-  const pipelineWireframe = device.createRenderPipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
+  // --- Single Pipeline with Barycentric Wireframe ---
+  const pipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
       module: shaderModule,
       entryPoint: "vs_main",
-      buffers: [{
-        arrayStride: 12,
-        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
-      }],
+      buffers: [
+        {
+          arrayStride: 24, // 6 floats: pos(3) + bary(3)
+          attributes: [
+            { shaderLocation: 0, offset: 0, format: "float32x3" }, // position
+            { shaderLocation: 1, offset: 12, format: "float32x3" }, // barycentric
+          ],
+        },
+      ],
     },
     fragment: {
       module: shaderModule,
-      entryPoint: "fs_wireframe",
-      targets: [{ format: canvasFormat }],
+      entryPoint: "fs_main",
+      targets: [
+        {
+          format: canvasFormat,
+          blend: {
+            color: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+            alpha: {
+              srcFactor: "one",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+          },
+        },
+      ],
     },
-    primitive: { topology: "line-list" },
-    depthStencil: {
-      depthWriteEnabled: true,
-      depthCompare: "less",
-      format: "depth24plus",
-    },
-  });
-
-  // --- Pipeline 2: Solid (Opaque) ---
-  const pipelineSolid = device.createRenderPipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
-    vertex: {
-      module: shaderModule,
-      entryPoint: "vs_main",
-      buffers: [{
-        arrayStride: 12,
-        attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
-      }],
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: "fs_solid",
-      targets: [{ format: canvasFormat }], // No blend needed
-    },
-    primitive: { topology: "triangle-list", cullMode: "none" }, // Double-sided
+    primitive: { topology: "triangle-list", cullMode: "none" },
     depthStencil: {
       depthWriteEnabled: true,
       depthCompare: "less",
@@ -164,33 +188,32 @@ async function init() {
   });
 
   // --- Buffers ---
-  const maxVerts = 10000;
-  const maxIndices = 60000; // Enough for triangles or lines
-  
+  const maxVerts = 100000;
+
   const vertexBuffer = device.createBuffer({
-    size: maxVerts * 12,
+    size: maxVerts * 24, // 6 floats per vertex
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
 
-  const indexBuffer = device.createBuffer({
-    size: maxIndices * 2,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  });
-
+  // Uniform buffer: mat4x4f (64) + lineWidth (4) + fillOpacity (4) + showWireframe (4) = 76, aligned to 80
   const uniformBuffer = device.createBuffer({
-    size: 64,
+    size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
   const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
+  const projectionMatrix = mat4.perspective(
+    (2 * Math.PI) / 5,
+    aspect,
+    0.1,
+    100.0
+  );
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  // Create bind group using the explicit layout
   const bindGroup = device.createBindGroup({
     layout: bindGroupLayout,
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
@@ -202,10 +225,12 @@ async function init() {
     height: 2,
     widthSegments: 4,
     heightSegments: 4,
-    wireframe: true,
+    showWireframe: true,
+    lineWidth: 1.5,
+    fillOpacity: 0.3,
   };
 
-  let indexCount = 0;
+  let vertexCount = 0;
 
   function updateGeometry() {
     const data = createPlaneGeometry(
@@ -214,48 +239,63 @@ async function init() {
       params.widthSegments,
       params.heightSegments
     );
-    
-    device.queue.writeBuffer(vertexBuffer, 0, data.positions);
-    
-    // Choose which indices to upload based on mode
-    const indices = params.wireframe ? data.indicesLine : data.indicesTri;
-    device.queue.writeBuffer(indexBuffer, 0, indices);
-    
-    indexCount = indices.length;
+
+    device.queue.writeBuffer(vertexBuffer, 0, data.vertices);
+    vertexCount = data.vertexCount;
   }
 
-  const gui = new GUI({ 
-    container: document.getElementById('gui-container') as HTMLElement,
-    title: 'Plane Settings'
+  const gui = new GUI({
+    container: document.getElementById("gui-container") as HTMLElement,
+    title: "Plane Settings",
   });
-  gui.add(params, 'width', 0.1, 5).onChange(updateGeometry);
-  gui.add(params, 'height', 0.1, 5).onChange(updateGeometry);
-  gui.add(params, 'widthSegments', 1, 50, 1).onChange(updateGeometry);
-  gui.add(params, 'heightSegments', 1, 50, 1).onChange(updateGeometry);
-  gui.add(params, 'wireframe').name('Wireframe').onChange(updateGeometry);
+  gui.add(params, "width", 0.1, 5).onChange(updateGeometry);
+  gui.add(params, "height", 0.1, 5).onChange(updateGeometry);
+  gui.add(params, "widthSegments", 1, 50, 1).onChange(updateGeometry);
+  gui.add(params, "heightSegments", 1, 50, 1).onChange(updateGeometry);
+  gui.add(params, "showWireframe").name("Show Wireframe");
+  gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
+  gui.add(params, "fillOpacity", 0.0, 1.0).name("Fill Opacity");
 
   updateGeometry();
 
   let angle = 0;
   function render() {
     angle += 0.005;
-    
-    const modelMatrix = mat4.multiply(mat4.rotationX(-Math.PI / 4), mat4.rotationZ(angle));
-    const viewMatrix = mat4.lookAt([0, 0, 5], [0, 0, 0], [0, 1, 0]);
-    const mvpMatrix = mat4.multiply(projectionMatrix, mat4.multiply(viewMatrix, modelMatrix));
 
+    const modelMatrix = mat4.multiply(
+      mat4.rotationX(-Math.PI / 4),
+      mat4.rotationZ(angle)
+    );
+    const viewMatrix = mat4.lookAt([0, 0, 5], [0, 0, 0], [0, 1, 0]);
+    const mvpMatrix = mat4.multiply(
+      projectionMatrix,
+      mat4.multiply(viewMatrix, modelMatrix)
+    );
+
+    // Write uniforms: mvpMatrix + lineWidth + fillOpacity + showWireframe
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
+    device.queue.writeBuffer(
+      uniformBuffer,
+      64,
+      new Float32Array([
+        params.lineWidth,
+        params.fillOpacity,
+        params.showWireframe ? 1.0 : 0.0,
+      ])
+    );
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
-        loadOp: "clear",
-        storeOp: "store",
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
       depthStencilAttachment: {
         view: depthTexture.createView(),
         depthClearValue: 1.0,
@@ -264,11 +304,10 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(params.wireframe ? pipelineWireframe : pipelineSolid);
+    renderPass.setPipeline(pipeline);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
-    renderPass.setIndexBuffer(indexBuffer, "uint16");
-    renderPass.drawIndexed(indexCount);
+    renderPass.draw(vertexCount);
     renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
