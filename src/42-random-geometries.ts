@@ -28,8 +28,8 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(
+  @builtin(vertex_index) vertexIndex : u32,
   @location(0) pos : vec3f,
-  @location(1) barycentric : vec3f,
   instance : InstanceInput,
 ) -> VertexOutput {
   let modelMatrix = mat4x4f(
@@ -41,7 +41,18 @@ fn vs_main(
 
   var out : VertexOutput;
   out.position = uniforms.viewProjectionMatrix * modelMatrix * vec4f(pos, 1.0);
-  out.barycentric = barycentric;
+  
+  // Calculate barycentric coordinates based on vertex index
+  // 0 -> (1, 0, 0), 1 -> (0, 1, 0), 2 -> (0, 0, 1)
+  let idx = vertexIndex % 3;
+  if (idx == 0) {
+    out.barycentric = vec3f(1.0, 0.0, 0.0);
+  } else if (idx == 1) {
+    out.barycentric = vec3f(0.0, 1.0, 0.0);
+  } else {
+    out.barycentric = vec3f(0.0, 0.0, 1.0);
+  }
+  
   out.color = instance.color;
   return out;
 }
@@ -72,7 +83,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 }
 `;
 
-// --- Geometry Generators (Barycentric) ---
+// --- Geometry Generators (Procedural Barycentric - Position Only) ---
 
 function createCube() {
   const vertices: number[] = [];
@@ -115,14 +126,14 @@ function createCube() {
         const posA = localPositions[a];
         const posB = localPositions[b];
         const posD = localPositions[d];
-        vertices.push(posA[0], posA[1], posA[2], 1, 0, 0);
-        vertices.push(posB[0], posB[1], posB[2], 0, 1, 0);
-        vertices.push(posD[0], posD[1], posD[2], 0, 0, 1);
+        vertices.push(posA[0], posA[1], posA[2]);
+        vertices.push(posB[0], posB[1], posB[2]);
+        vertices.push(posD[0], posD[1], posD[2]);
 
         const posC = localPositions[c];
-        vertices.push(posB[0], posB[1], posB[2], 1, 0, 0);
-        vertices.push(posC[0], posC[1], posC[2], 0, 1, 0);
-        vertices.push(posD[0], posD[1], posD[2], 0, 0, 1);
+        vertices.push(posB[0], posB[1], posB[2]);
+        vertices.push(posC[0], posC[1], posC[2]);
+        vertices.push(posD[0], posD[1], posD[2]);
       }
     }
   }
@@ -134,7 +145,7 @@ function createCube() {
   buildPlane(0, 1, 2, 1, -1, 1);  // pz
   buildPlane(0, 1, 2, -1, -1, -1);// nz
 
-  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 6 };
+  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 3 };
 }
 
 function createSphere(radius = 0.5, widthSegments = 16, heightSegments = 12) {
@@ -165,15 +176,15 @@ function createSphere(radius = 0.5, widthSegments = 16, heightSegments = 12) {
 
       if (iy !== 0) {
          const posB = tempPositions[b], posD = tempPositions[d], posA = tempPositions[a];
-         vertices.push(...posB, 1, 0, 0, ...posD, 0, 1, 0, ...posA, 0, 0, 1);
+         vertices.push(...posB, ...posD, ...posA);
       }
       if (iy !== heightSegments - 1) {
          const posB = tempPositions[b], posC = tempPositions[c], posD = tempPositions[d];
-         vertices.push(...posB, 1, 0, 0, ...posC, 0, 1, 0, ...posD, 0, 0, 1);
+         vertices.push(...posB, ...posC, ...posD);
       }
     }
   }
-  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 6 };
+  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 3 };
 }
 
 function createCylinder(radiusTop = 0.5, radiusBottom = 0.5, height = 1, radialSegments = 16) {
@@ -210,8 +221,8 @@ function createCylinder(radiusTop = 0.5, radiusBottom = 0.5, height = 1, radialS
 
         // Torso
         const pA = tempPositions[a], pB = tempPositions[b], pC = tempPositions[c], pD = tempPositions[d];
-        vertices.push(...pA, 1, 0, 0, ...pB, 0, 1, 0, ...pD, 0, 0, 1);
-        vertices.push(...pB, 1, 0, 0, ...pC, 0, 1, 0, ...pD, 0, 0, 1);
+        vertices.push(...pA, ...pB, ...pD);
+        vertices.push(...pB, ...pC, ...pD);
     }
     
     // Caps
@@ -224,7 +235,7 @@ function createCylinder(radiusTop = 0.5, radiusBottom = 0.5, height = 1, radialS
            const pC = tempPositions[centerIndex];
            const pU = tempPositions[u];
            const pV = tempPositions[v];
-           vertices.push(...pC, 1, 0, 0, ...pU, 0, 1, 0, ...pV, 0, 0, 1);
+           vertices.push(...pC, ...pU, ...pV);
         }
     }
     
@@ -237,11 +248,11 @@ function createCylinder(radiusTop = 0.5, radiusBottom = 0.5, height = 1, radialS
            const pC = tempPositions[centerIndex];
            const pU = tempPositions[u];
            const pV = tempPositions[v];
-           vertices.push(...pC, 1, 0, 0, ...pV, 0, 1, 0, ...pU, 0, 0, 1); // Reversed winding
+           vertices.push(...pC, ...pV, ...pU); // Reversed winding
         }
     }
 
-    return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 6 };
+    return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 3 };
 }
 
 function createTorus(radius = 0.4, tube = 0.15, radialSegments = 8, tubularSegments = 16) {
@@ -268,11 +279,11 @@ function createTorus(radius = 0.4, tube = 0.15, radialSegments = 8, tubularSegme
       const d = (tubularSegments + 1) * j + i + 1;
 
       const pA = tempPositions[a], pB = tempPositions[b], pC = tempPositions[c], pD = tempPositions[d];
-      vertices.push(...pA, 1, 0, 0, ...pB, 0, 1, 0, ...pD, 0, 0, 1);
-      vertices.push(...pB, 1, 0, 0, ...pC, 0, 1, 0, ...pD, 0, 0, 1);
+      vertices.push(...pA, ...pB, ...pD);
+      vertices.push(...pB, ...pC, ...pD);
     }
   }
-  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 6 };
+  return { vertices: new Float32Array(vertices), vertexCount: vertices.length / 3 };
 }
 
 async function init() {
@@ -280,24 +291,48 @@ async function init() {
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
   // 1. Prepare Geometry Data (Buffers on GPU)
-  const meshes = [
-    createCube(),
-    createSphere(),
-    createCylinder(0.5, 0.5, 1, 16), // Cylinder
-    createCylinder(0, 0.5, 1, 16),   // Cone
-    createTorus(),
-    createTorus(0.3, 0.1, 6, 12), // Placeholder for variety
-  ];
+  let gpuMeshes: { vertexBuffer: GPUBuffer, vertexCount: number }[] = [];
 
-  const gpuMeshes = meshes.map(mesh => {
-    const vertexBuffer = device.createBuffer({
-      size: mesh.vertices.byteLength,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  function updateMeshes() {
+    let sphereW = 16, sphereH = 12;
+    let cylSegs = 16;
+    let torusR = 8, torusT = 16;
+    let torus2R = 6, torus2T = 12;
+
+    if (params.resolution === 'Medium') {
+      sphereW = 12; sphereH = 8;
+      cylSegs = 12;
+      torusR = 6; torusT = 12;
+      torus2R = 5; torus2T = 10;
+    } else if (params.resolution === 'Low') {
+      sphereW = 8; sphereH = 6;
+      cylSegs = 8;
+      torusR = 4; torusT = 8;
+      torus2R = 4; torus2T = 6;
+    }
+
+    const meshes = [
+      createCube(),
+      createSphere(0.5, sphereW, sphereH),
+      createCylinder(0.5, 0.5, 1, cylSegs), // Cylinder
+      createCylinder(0, 0.5, 1, cylSegs),   // Cone
+      createTorus(0.4, 0.15, torusR, torusT),
+      createTorus(0.3, 0.1, torus2R, torus2T), // Placeholder for variety
+    ];
+
+    // Cleanup old buffers
+    gpuMeshes.forEach(m => m.vertexBuffer.destroy());
+
+    gpuMeshes = meshes.map(mesh => {
+      const vertexBuffer = device.createBuffer({
+        size: mesh.vertices.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(vertexBuffer, 0, mesh.vertices);
+
+      return { vertexBuffer, vertexCount: mesh.vertexCount };
     });
-    device.queue.writeBuffer(vertexBuffer, 0, mesh.vertices);
-
-    return { vertexBuffer, vertexCount: mesh.vertexCount };
-  });
+  }
 
   // 2. Uniforms
   const uniformBuffer = device.createBuffer({
@@ -314,8 +349,8 @@ async function init() {
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
-  // 3. Pipeline
-  const pipeline = device.createRenderPipeline({
+  // 3. Pipelines (Double-sided and Front-sided)
+  const pipelineDescriptor: GPURenderPipelineDescriptor = {
     layout: device.createPipelineLayout({
       bindGroupLayouts: [bindGroupLayout],
     }),
@@ -323,13 +358,12 @@ async function init() {
       module: device.createShaderModule({ code: shaderCode }),
       entryPoint: "vs_main",
       buffers: [
-        // Buffer 0: Position + Barycentric
+        // Buffer 0: Position Only
         {
-          arrayStride: 24, // 6 floats
+          arrayStride: 12, // 3 floats
           stepMode: "vertex",
           attributes: [
              { shaderLocation: 0, offset: 0, format: "float32x3" }, // position
-             { shaderLocation: 1, offset: 12, format: "float32x3" }, // barycentric
           ],
         },
         // Buffer 1: Instance Matrix (4 * vec4) + Color (vec4) = 5 attributes
@@ -357,13 +391,18 @@ async function init() {
         },
       }],
     },
-    primitive: { topology: "triangle-list", cullMode: "none" }, // No culling to show wireframe clearly
+    primitive: { topology: "triangle-list", cullMode: "none" },
     depthStencil: {
       depthWriteEnabled: true,
       depthCompare: "less",
       format: "depth24plus",
     },
-  });
+  };
+
+  const pipelineDoubleSide = device.createRenderPipeline(pipelineDescriptor);
+  
+  pipelineDescriptor.primitive!.cullMode = "back";
+  const pipelineFrontSide = device.createRenderPipeline(pipelineDescriptor);
 
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
@@ -383,7 +422,11 @@ async function init() {
     lineWidth: 1.5,
     showWireframe: true,
     fillOpacity: 0.5,
+    cullMode: 'none',
+    resolution: 'High',
   };
+
+  updateMeshes();
 
   function generateInstances() {
     const data = new Float32Array(MAX_INSTANCES * 20);
@@ -431,6 +474,8 @@ async function init() {
   gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
   gui.add(params, "showWireframe").name("Show Wireframe");
   gui.add(params, "fillOpacity", 0.0, 1.0).name("Fill Opacity");
+  gui.add(params, 'cullMode', ['none', 'back']).name('Cull Mode');
+  gui.add(params, 'resolution', ['High', 'Medium', 'Low']).name('Resolution').onChange(updateMeshes);
 
   function render() {
     const totalCount = Number(params.count);
@@ -474,7 +519,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(params.cullMode === 'back' ? pipelineFrontSide : pipelineDoubleSide);
     renderPass.setBindGroup(0, bindGroup);
 
     let remaining = totalCount;
