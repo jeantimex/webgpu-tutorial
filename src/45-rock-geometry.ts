@@ -57,27 +57,40 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 }
 `;
 
-function createJewelGeometry(
+function createRockGeometry(
   radius: number,
   widthSegments: number,
-  heightSegments: number
+  heightSegments: number,
+  randomness: number = 0.2
 ) {
-  const vertices: number[] = []; // pos(3) + bary(3) + color(3) = 9 floats per vertex
+  const vertices: number[] = [];
   const tempPositions: number[][] = [];
   const grid: number[][] = [];
 
-  // 1. Generate vertices
+  // Use seeded random for consistency (simple LCG)
+  let seed = 12345;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
   for (let iy = 0; iy <= heightSegments; iy++) {
     const verticesRow: number[] = [];
     const v = iy / heightSegments;
-    const uOffset = 0;
+    const phi = v * Math.PI;
 
     for (let ix = 0; ix <= widthSegments; ix++) {
       const u = ix / widthSegments;
+      const theta = u * Math.PI * 2;
 
-      const x = -radius * Math.cos(u * Math.PI * 2) * Math.sin(v * Math.PI);
-      const y = radius * Math.cos(v * Math.PI);
-      const z = radius * Math.sin(u * Math.PI * 2) * Math.sin(v * Math.PI);
+      // Add randomness to radius
+      // Reduce randomness at poles to keep them somewhat sealed
+      const poleFactor = Math.sin(phi);
+      const r = radius * (1 + (random() - 0.5) * 2 * randomness * poleFactor);
+
+      const x = -r * Math.cos(theta) * Math.sin(phi);
+      const y = r * Math.cos(phi);
+      const z = r * Math.sin(theta) * Math.sin(phi);
 
       tempPositions.push([x, y, z]);
       verticesRow.push(tempPositions.length - 1);
@@ -85,34 +98,21 @@ function createJewelGeometry(
     grid.push(verticesRow);
   }
 
-  // 2. Generate triangles with random face colors
   function addTriangle(a: number, b: number, c: number) {
     const pA = tempPositions[a];
     const pB = tempPositions[b];
     const pC = tempPositions[c];
 
-    // Random color for this face (Jewel facet)
-    // We'll make it a variation of a base color (e.g., ruby or sapphire)
-    const hue = 0.9 + Math.random() * 0.1; // Reddish
-    const sat = 0.8 + Math.random() * 0.2;
-    const val = 0.4 + Math.random() * 0.6; // Vary brightness for "sparkle"
-    
-    // Simple HSV to RGB (approximate for red/pinkish)
-    const r = val;
-    const g = val * (1 - sat);
-    const blue = val * (1 - sat);
+    // Earthy/Rock colors (Gray/Brown)
+    const val = 0.3 + Math.random() * 0.4;
+    // Slight brown tint
+    const red = val + Math.random() * 0.1;
+    const green = val;
+    const blue = val - Math.random() * 0.05;
 
-    // Push 3 vertices
-    vertices.push(...pA, 1, 0, 0, r, g, blue);
-    // Simple HSV to RGB (approximate for red/pinkish)
-    const r = val;
-    const g = val * (1 - sat);
-    const blue = val * (1 - sat);
-
-    // Push 3 vertices
-    vertices.push(...pA, 1, 0, 0, r, g, blue);
-    vertices.push(...pB, 0, 1, 0, r, g, blue);
-    vertices.push(...pC, 0, 0, 1, r, g, blue);
+    vertices.push(...pA, 1, 0, 0, red, green, blue);
+    vertices.push(...pB, 0, 1, 0, red, green, blue);
+    vertices.push(...pC, 0, 0, 1, red, green, blue);
   }
 
   for (let iy = 0; iy < heightSegments; iy++) {
@@ -204,8 +204,9 @@ async function init() {
 
   const params = {
     radius: 1.5,
-    widthSegments: 7,
-    heightSegments: 5,
+    widthSegments: 16,
+    heightSegments: 12,
+    randomness: 0.15,
     showWireframe: true,
     lineWidth: 1.5,
     fillOpacity: 0.8,
@@ -214,19 +215,21 @@ async function init() {
   let vertexCount = 0;
 
   function updateGeometry() {
-    const data = createJewelGeometry(
+    const data = createRockGeometry(
       params.radius,
       params.widthSegments,
-      params.heightSegments
+      params.heightSegments,
+      params.randomness
     );
     device.queue.writeBuffer(vertexBuffer, 0, data.vertices);
     vertexCount = data.vertexCount;
   }
 
-  const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement, title: "Jewel Settings" });
+  const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement, title: "Rock Settings" });
   gui.add(params, "radius", 0.5, 3.0).onChange(updateGeometry);
-  gui.add(params, "widthSegments", 3, 20, 1).onChange(updateGeometry);
-  gui.add(params, "heightSegments", 2, 20, 1).onChange(updateGeometry);
+  gui.add(params, "widthSegments", 3, 32, 1).onChange(updateGeometry);
+  gui.add(params, "heightSegments", 2, 32, 1).onChange(updateGeometry);
+  gui.add(params, "randomness", 0.0, 1.0).name("Randomness").onChange(updateGeometry);
   gui.add(params, "showWireframe");
   gui.add(params, "lineWidth", 0.5, 5.0);
   gui.add(params, "fillOpacity", 0.0, 1.0);
