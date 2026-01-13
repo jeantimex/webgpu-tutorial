@@ -104,13 +104,6 @@ function createJewelGeometry(
 
     // Push 3 vertices
     vertices.push(...pA, 1, 0, 0, r, g, blue);
-    // Simple HSV to RGB (approximate for red/pinkish)
-    const r = val;
-    const g = val * (1 - sat);
-    const blue = val * (1 - sat);
-
-    // Push 3 vertices
-    vertices.push(...pA, 1, 0, 0, r, g, blue);
     vertices.push(...pB, 0, 1, 0, r, g, blue);
     vertices.push(...pC, 0, 0, 1, r, g, blue);
   }
