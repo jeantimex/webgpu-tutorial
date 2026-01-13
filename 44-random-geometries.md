@@ -131,9 +131,8 @@ for (const obj of objects) {
 
 ## GUI Controls
 
-- **Object Count** - Number of objects (1-100)
+- **Object Count** - Dropdown to select number of objects (1, 10, 1000, 10000, 100000, 1000000)
 - **Line Thickness** - Wireframe line width
-- **Alpha Threshold** - Cutoff for wireframe visibility
 - **Regenerate** - Create new random objects
 
 ## Advantages of This Approach

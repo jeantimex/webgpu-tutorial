@@ -663,16 +663,14 @@ async function init() {
   const params = {
     count: 10,
     thickness: 0.5,
-    alphaThreshold: 0.5,
     regenerate: () => generateObjects(params.count),
   };
 
   generateObjects(params.count);
 
   const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement });
-  gui.add(params, "count", 1, 100, 1).name("Object Count").onChange(() => generateObjects(params.count));
+  gui.add(params, "count", [1, 10, 1000, 10000, 100000, 1000000]).name("Object Count").onChange(() => generateObjects(params.count));
   gui.add(params, "thickness", 0.5, 5.0).name("Line Thickness");
-  gui.add(params, "alphaThreshold", 0.0, 1.0).name("Alpha Threshold");
   gui.add(params, "regenerate").name("Regenerate");
 
   const aspect = canvas.width / canvas.height;
@@ -683,8 +681,8 @@ async function init() {
   function render() {
     time += 0.01;
 
-    // Update line uniforms
-    device.queue.writeBuffer(lineUniformBuffer, 0, new Float32Array([params.thickness, params.alphaThreshold]));
+    // Update line uniforms (thickness, alphaThreshold fixed at 0.5)
+    device.queue.writeBuffer(lineUniformBuffer, 0, new Float32Array([params.thickness, 0.5]));
 
     // Camera
     const camRadius = 80;
