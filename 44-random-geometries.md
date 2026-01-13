@@ -145,6 +145,48 @@ for (const obj of objects) {
 | Storage buffers | Flexible geometry access in shaders |
 | `fwidth()` derivatives | Resolution-independent line thickness |
 
+## Performance Considerations
+
+This tutorial uses a straightforward per-object rendering approach that works well for small to moderate object counts. However, performance degrades at higher counts (10,000+). Understanding these bottlenecks is crucial for future optimization work.
+
+### Current Bottlenecks
+
+1. **Per-object uniform buffer updates** - Writing to each object's buffer every frame via `device.queue.writeBuffer`
+2. **Per-object bind group switches** - Calling `setBindGroup` for each object
+3. **Individual draw calls** - One `draw()` call per object
+4. **CPU matrix calculations** - Computing matrices on CPU for each object every frame
+
+### Optimization Strategies
+
+#### 1. Instanced Rendering (High Impact)
+
+Group objects by geometry type and draw all instances of the same geometry with a single `draw(vertexCount, instanceCount)` call. This reduces draw calls from 10,000 to just 8 (one per geometry type).
+
+#### 2. Storage Buffer for Instance Data (High Impact)
+
+Replace per-object uniform buffers with a single large storage buffer containing all transforms and colors. The shader reads data using `instance_index`. One buffer write per frame instead of 10,000.
+
+#### 3. GPU-side Matrix Computation (Medium-High Impact)
+
+Use a compute shader to calculate world/view/projection matrices on the GPU. The CPU only uploads raw position/rotation/scale data, and the compute shader generates the final matrices in parallel.
+
+#### 4. Indirect Drawing (Medium Impact)
+
+Use `drawIndirect` to reduce CPU-GPU synchronization. Draw parameters come from a GPU buffer, enabling fully GPU-driven rendering.
+
+#### 5. Frustum Culling (Medium Impact)
+
+Skip rendering objects outside the camera view. Can be done on CPU for moderate counts, or GPU compute for massive counts.
+
+#### 6. Reduce Dynamic Updates (Low-Medium Impact)
+
+- Only update the line uniforms buffer when thickness actually changes
+- Consider static objects that don't need per-frame updates
+
+#### 7. Level of Detail (LOD)
+
+Use simpler geometry (fewer triangles) for distant objects.
+
 ## References
 
 This implementation is based on the [WebGPU Wireframe Sample](https://webgpu.github.io/webgpu-samples/?sample=wireframe).
