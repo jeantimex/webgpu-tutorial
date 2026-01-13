@@ -47,7 +47,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 39 | [Torus Knot Geometry](39-torus-knot-geometry.md) | Generate complex, interlinked torus knots using parametric equations. |
 | 40 | [Cone Geometry](40-cone-geometry.md) | Generate a cone shape (a cylinder with zero top radius). |
 | 41 | [Plane Geometry](41-plane-geometry.md) | Generate a flat 2D grid oriented in 3D space. |
-| 42 | [Random Geometries (Instancing)](42-random-geometries.md) | Render up to 1,000,000 varied objects efficiently using hardware Instancing. |
+| 42 | [Jewel Geometry](42-jewel-geometry.md) | Generate a faceted low-poly sphere with per-face colors. |
 | 43 | [Shadow Mapping](43-shadow-mapping.md) | Learn how to implement basic shadow mapping using a depth pass and comparison samplers. |
 | 44 | [Random Geometries](44-random-geometries.md) | Render multiple objects with different geometries and wireframes using per-object bind groups. |
 

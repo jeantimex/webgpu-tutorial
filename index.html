@@ -600,7 +600,7 @@
           <a href="41-plane-geometry.html">41. Plane Geometry</a>
         </li>
         <li>
-          <a href="42-random-geometries.html">42. Random Geometries (Instancing)</a>
+          <a href="42-jewel-geometry.html">42. Jewel Geometry</a>
         </li>
         <li>
           <a href="43-shadow-mapping.html">43. Shadow Mapping</a>
@@ -841,8 +841,10 @@
           markdownDiv.style.display = "none";
           btnDemo.classList.add("active");
           btnTutorial.classList.remove("active");
-          const currentSrc = iframe.getAttribute("src");
-          if (currentSrc !== currentPage) {
+          
+          // Use property instead of attribute for more reliable comparison
+          // and ensure the iframe actually points to the current page
+          if (!iframe.src.endsWith(currentPage)) {
             iframe.src = currentPage;
           }
         } else {

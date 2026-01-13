@@ -176,7 +176,7 @@ Use `drawIndirect` to reduce CPU-GPU synchronization. Draw parameters come from 
 
 #### 5. Frustum Culling (Medium Impact)
 
-Skip rendering objects outside the camera view. Can be done on CPU for moderate counts, or GPU compute for massive counts (like tutorial 42 attempts).
+Skip rendering objects outside the camera view. Can be done on CPU for moderate counts, or GPU compute for massive counts.
 
 #### 6. Reduce Dynamic Updates (Low-Medium Impact)
 
