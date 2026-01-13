@@ -170,6 +170,142 @@ function createSphereGeometry(radius = 0.5, widthSegments = 16, heightSegments =
   return { positions: new Float32Array(positions), normals: new Float32Array(normals), indices: new Uint32Array(indices), indexCount: indices.length };
 }
 
+// Jewel: Faceted sphere with flat normals (low-poly gem look)
+function createJewelGeometry(radius = 0.5, widthSegments = 5, heightSegments = 3): IndexedGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+
+  // Generate sphere vertices first
+  const tempPositions: [number, number, number][] = [];
+
+  for (let y = 0; y <= heightSegments; y++) {
+    const v = y / heightSegments;
+    const phi = v * Math.PI;
+
+    for (let x = 0; x <= widthSegments; x++) {
+      const u = x / widthSegments;
+      const theta = u * Math.PI * 2;
+
+      const nx = -Math.sin(phi) * Math.cos(theta);
+      const ny = Math.cos(phi);
+      const nz = Math.sin(phi) * Math.sin(theta);
+
+      tempPositions.push([nx * radius, ny * radius, nz * radius]);
+    }
+  }
+
+  // Build triangles with flat normals (each triangle gets its own vertices)
+  for (let y = 0; y < heightSegments; y++) {
+    for (let x = 0; x < widthSegments; x++) {
+      const a = y * (widthSegments + 1) + x;
+      const b = a + widthSegments + 1;
+      const c = a + 1;
+      const d = b + 1;
+
+      if (y !== 0) {
+        // Triangle a, b, c
+        const pa = tempPositions[a], pb = tempPositions[b], pc = tempPositions[c];
+        const faceNormal1 = computeFaceNormal(pa, pb, pc);
+        const baseIdx1 = positions.length / 3;
+        positions.push(...pa, ...pb, ...pc);
+        normals.push(...faceNormal1, ...faceNormal1, ...faceNormal1);
+        indices.push(baseIdx1, baseIdx1 + 1, baseIdx1 + 2);
+      }
+
+      if (y !== heightSegments - 1) {
+        // Triangle c, b, d
+        const pc = tempPositions[c], pb = tempPositions[b], pd = tempPositions[d];
+        const faceNormal2 = computeFaceNormal(pc, pb, pd);
+        const baseIdx2 = positions.length / 3;
+        positions.push(...pc, ...pb, ...pd);
+        normals.push(...faceNormal2, ...faceNormal2, ...faceNormal2);
+        indices.push(baseIdx2, baseIdx2 + 1, baseIdx2 + 2);
+      }
+    }
+  }
+
+  return { positions: new Float32Array(positions), normals: new Float32Array(normals), indices: new Uint32Array(indices), indexCount: indices.length };
+}
+
+// Rock: Sphere with randomized vertices for organic look
+function createRockGeometry(radius = 0.5, widthSegments = 16, heightSegments = 12, randomness = 0.15): IndexedGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+
+  // Generate randomized sphere vertices
+  const tempPositions: [number, number, number][] = [];
+
+  // Use seeded random for consistency (simple LCG)
+  let seed = 12345;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  for (let y = 0; y <= heightSegments; y++) {
+    const v = y / heightSegments;
+    const phi = v * Math.PI;
+
+    for (let x = 0; x <= widthSegments; x++) {
+      const u = x / widthSegments;
+      const theta = u * Math.PI * 2;
+
+      const nx = -Math.sin(phi) * Math.cos(theta);
+      const ny = Math.cos(phi);
+      const nz = Math.sin(phi) * Math.sin(theta);
+
+      // Add randomness to radius (less at poles for smoother caps)
+      const poleFactor = Math.sin(phi); // 0 at poles, 1 at equator
+      const r = radius * (1 + (random() - 0.5) * 2 * randomness * poleFactor);
+
+      tempPositions.push([nx * r, ny * r, nz * r]);
+    }
+  }
+
+  // Build triangles with flat normals
+  for (let y = 0; y < heightSegments; y++) {
+    for (let x = 0; x < widthSegments; x++) {
+      const a = y * (widthSegments + 1) + x;
+      const b = a + widthSegments + 1;
+      const c = a + 1;
+      const d = b + 1;
+
+      if (y !== 0) {
+        const pa = tempPositions[a], pb = tempPositions[b], pc = tempPositions[c];
+        const faceNormal1 = computeFaceNormal(pa, pb, pc);
+        const baseIdx1 = positions.length / 3;
+        positions.push(...pa, ...pb, ...pc);
+        normals.push(...faceNormal1, ...faceNormal1, ...faceNormal1);
+        indices.push(baseIdx1, baseIdx1 + 1, baseIdx1 + 2);
+      }
+
+      if (y !== heightSegments - 1) {
+        const pc = tempPositions[c], pb = tempPositions[b], pd = tempPositions[d];
+        const faceNormal2 = computeFaceNormal(pc, pb, pd);
+        const baseIdx2 = positions.length / 3;
+        positions.push(...pc, ...pb, ...pd);
+        normals.push(...faceNormal2, ...faceNormal2, ...faceNormal2);
+        indices.push(baseIdx2, baseIdx2 + 1, baseIdx2 + 2);
+      }
+    }
+  }
+
+  return { positions: new Float32Array(positions), normals: new Float32Array(normals), indices: new Uint32Array(indices), indexCount: indices.length };
+}
+
+// Helper: Compute face normal from 3 vertices
+function computeFaceNormal(a: [number, number, number], b: [number, number, number], c: [number, number, number]): [number, number, number] {
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const nx = uy * vz - uz * vy;
+  const ny = uz * vx - ux * vz;
+  const nz = ux * vy - uy * vx;
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+  return [nx / len, ny / len, nz / len];
+}
+
 function createCylinderGeometry(radiusTop = 0.5, radiusBottom = 0.5, height = 1, radialSegments = 16): IndexedGeometry {
   const positions: number[] = [];
   const normals: number[] = [];
@@ -399,6 +535,8 @@ async function init() {
   const geometries = [
     createBoxGeometry(),
     createSphereGeometry(0.5, 16, 12),
+    createJewelGeometry(0.5, 5, 3),
+    createRockGeometry(0.5, 16, 12, 0.15),
     createCylinderGeometry(0.5, 0.5, 1, 16),
     createConeGeometry(0.5, 1, 16),
     createTorusGeometry(0.4, 0.15, 8, 16),

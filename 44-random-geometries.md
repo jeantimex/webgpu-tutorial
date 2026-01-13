@@ -4,9 +4,11 @@ In this tutorial, we render multiple 3D objects with randomly assigned geometry 
 
 ## Overview
 
-We create 6 different geometry types:
-- **Box** - A simple cube (8 vertices, 36 indices)
-- **Sphere** - A UV sphere
+We create 8 different geometry types:
+- **Box** - A simple cube with 6 faces
+- **Sphere** - A UV sphere with smooth shading
+- **Jewel** - A low-poly faceted sphere (gem-like appearance)
+- **Rock** - A sphere with randomized vertices (organic look)
 - **Cylinder** - A cylinder with top and bottom caps
 - **Cone** - A cone with a bottom cap
 - **Torus** - A donut shape
@@ -20,7 +22,8 @@ Instead of storing barycentric coordinates per vertex, we use indexed geometry:
 
 ```typescript
 interface IndexedGeometry {
-  positions: Float32Array;  // Vertex positions only
+  positions: Float32Array;  // Vertex positions (x, y, z)
+  normals: Float32Array;    // Vertex normals for lighting
   indices: Uint32Array;     // Triangle indices
   indexCount: number;
 }
@@ -64,19 +67,20 @@ fn vs_main(@builtin(vertex_index) vNdx : u32) -> VSOutput {
 
 ### 3. Storage Buffers for Geometry
 
-Positions and indices are stored in storage buffers, allowing the shader to read them directly:
+Positions, normals, and indices are stored in storage buffers, allowing the shader to read them directly:
 
 ```wgsl
 @group(0) @binding(2) var<storage, read> positions : array<f32>;
-@group(0) @binding(3) var<storage, read> indices : array<u32>;
+@group(0) @binding(3) var<storage, read> normals : array<f32>;
+@group(0) @binding(4) var<storage, read> indices : array<u32>;
 ```
 
 ### 4. Per-Object Bind Groups
 
 Each object has its own bind group containing:
-- Uniform buffer (transform matrix + color)
+- Uniform buffer (transform matrices + color)
 - Shared line uniforms (thickness, alpha threshold)
-- Geometry buffers (positions, indices)
+- Geometry buffers (positions, normals, indices)
 
 ```typescript
 const bindGroup = device.createBindGroup({
@@ -85,7 +89,8 @@ const bindGroup = device.createBindGroup({
     { binding: 0, resource: { buffer: uniformBuffer } },
     { binding: 1, resource: { buffer: lineUniformBuffer } },
     { binding: 2, resource: { buffer: geo.positionBuffer } },
-    { binding: 3, resource: { buffer: geo.indexBuffer } },
+    { binding: 3, resource: { buffer: geo.normalBuffer } },
+    { binding: 4, resource: { buffer: geo.indexBuffer } },
   ],
 });
 ```
