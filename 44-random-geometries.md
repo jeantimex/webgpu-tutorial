@@ -118,7 +118,7 @@ fn fs_main(v : VSOutput) -> @location(0) vec4f {
 
 ## Rendering Loop
 
-The render loop is efficient - just switch bind groups for each object:
+The render loop is straightforward, but its performance is limited because it switches bind groups and issues a draw call for every single object:
 
 ```typescript
 renderPass.setPipeline(pipeline);
@@ -141,13 +141,13 @@ for (const obj of objects) {
 |---------|---------|
 | Indexed geometry | Less memory, shared vertices |
 | Shader-computed barycentrics | No extra vertex attributes |
-| Per-object bind groups | Fast switching, no uniform updates during draw |
+| Per-object bind groups | Simple to implement, easy to manage individual object state |
 | Storage buffers | Flexible geometry access in shaders |
 | `fwidth()` derivatives | Resolution-independent line thickness |
 
 ## Performance Considerations
 
-This tutorial uses a straightforward per-object rendering approach that works well for small to moderate object counts. However, performance degrades at higher counts (10,000+). Understanding these bottlenecks is crucial for future optimization work.
+This tutorial uses a straightforward per-object rendering approach that works well for small to moderate object counts. However, it is **not performant** at higher counts (10,000+). There are many techniques available to improve this.
 
 ### Current Bottlenecks
 
@@ -176,7 +176,7 @@ Use `drawIndirect` to reduce CPU-GPU synchronization. Draw parameters come from 
 
 #### 5. Frustum Culling (Medium Impact)
 
-Skip rendering objects outside the camera view. Can be done on CPU for moderate counts, or GPU compute for massive counts.
+Skip rendering objects outside the camera view. Can be done on CPU for moderate counts, or GPU compute for massive counts (like tutorial 42 attempts).
 
 #### 6. Reduce Dynamic Updates (Low-Medium Impact)
 
