@@ -8,6 +8,7 @@ struct Uniforms {
   lineWidth : f32,
   fillOpacity : f32,
   showWireframe : f32,
+  alphaThreshold : f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -47,27 +48,26 @@ fn edgeFactor(bary : vec3f, width : f32) -> f32 {
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-  // Lighting calculation
+  // Lighting
   let lightDirection = normalize(vec3f(4.0, 10.0, 6.0));
-  let normal = normalize(in.normal);
-  let light = dot(normal, lightDirection) * 0.5 + 0.5;
+  let light = dot(normalize(in.normal), lightDirection) * 0.5 + 0.5;
   let litColor = in.color * light;
 
   // Wireframe edge factor
   let edge = 1.0 - edgeFactor(in.barycentric, uniforms.lineWidth);
-
   let wireColor = vec3f(1.0, 1.0, 1.0);
+  let wireMix = edge * uniforms.showWireframe;
 
-  let wireAlpha = edge * uniforms.showWireframe;
-  let fillAlpha = uniforms.fillOpacity * (1.0 - wireAlpha);
-  let totalAlpha = wireAlpha + fillAlpha;
+  // Blend wireframe over lit color, similar to the non-instanced version.
+  let finalColor = mix(litColor, wireColor, wireMix);
 
-  if (totalAlpha < 0.01) {
+  let a = max(wireMix, 1.0 - uniforms.alphaThreshold);
+  if (a < uniforms.alphaThreshold) {
     discard;
   }
 
-  let color = (wireColor * wireAlpha + litColor * fillAlpha) / totalAlpha;
-  return vec4f(color, totalAlpha);
+  let alpha = max(wireMix, uniforms.fillOpacity);
+  return vec4f(finalColor, alpha);
 }
 `;
 
@@ -509,10 +509,11 @@ async function init() {
 
   const params = {
     numInstances: 100,
-    cubeSize: 0.6,
+    cubeSize: 1.0,
     showWireframe: true,
-    lineWidth: 1.5,
-    fillOpacity: 0.8,
+    lineWidth: 0.75,
+    fillOpacity: 1.0,
+    alphaThreshold: 0.5,
     rotationSpeed: 1.0,
   };
 
@@ -523,6 +524,7 @@ async function init() {
   gui.add(params, "showWireframe").name("Show Wireframe");
   gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
   gui.add(params, "fillOpacity", 0.0, 1.0).name("Fill Opacity");
+  gui.add(params, "alphaThreshold", 0.0, 1.0).name("Alpha Threshold");
 
   const aspect = canvas.width / canvas.height;
   const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
@@ -598,6 +600,7 @@ async function init() {
       params.lineWidth,
       params.fillOpacity,
       params.showWireframe ? 1.0 : 0.0,
+      params.alphaThreshold,
     ]));
 
     const commandEncoder = device.createCommandEncoder();
