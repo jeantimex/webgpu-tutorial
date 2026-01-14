@@ -13,12 +13,18 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var<storage, read> modelMatrices : array<mat4x4f>;
+@group(0) @binding(2) var<storage, read> instanceColors : array<vec4f>;
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
   @location(0) barycentric : vec3f,
   @location(1) color : vec3f,
   @location(2) normal : vec3f,
+}
+
+struct LineOutput {
+  @builtin(position) position : vec4f,
+  @location(0) color : vec3f,
 }
 
 @vertex
@@ -34,9 +40,22 @@ fn vs_main(
   let mvpMatrix = uniforms.viewProjectionMatrix * modelMatrix;
   out.position = mvpMatrix * vec4f(pos, 1.0);
   out.barycentric = barycentric;
-  out.color = color;
+  out.color = instanceColors[instanceIndex].rgb;
   // Transform normal by model matrix (ignoring translation)
   out.normal = (modelMatrix * vec4f(normal, 0.0)).xyz;
+  return out;
+}
+
+@vertex
+fn vs_line(
+  @builtin(instance_index) instanceIndex : u32,
+  @location(0) pos : vec3f,
+) -> LineOutput {
+  var out : LineOutput;
+  let modelMatrix = modelMatrices[instanceIndex];
+  let mvpMatrix = uniforms.viewProjectionMatrix * modelMatrix;
+  out.position = mvpMatrix * vec4f(pos, 1.0);
+  out.color = clamp(instanceColors[instanceIndex].rgb + vec3f(0.5), vec3f(0.0), vec3f(1.0));
   return out;
 }
 
@@ -47,27 +66,27 @@ fn edgeFactor(bary : vec3f, width : f32) -> f32 {
 }
 
 @fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4f {
+fn fs_lit(in : VertexOutput) -> @location(0) vec4f {
   // Lighting
   let lightDirection = normalize(vec3f(4.0, 10.0, 6.0));
   let light = dot(normalize(in.normal), lightDirection) * 0.5 + 0.5;
   let litColor = in.color * light;
+  return vec4f(litColor, uniforms.fillOpacity);
+}
 
-  // Wireframe edge factor
+@fragment
+fn fs_wireframe(in : VertexOutput) -> @location(0) vec4f {
   let edge = 1.0 - edgeFactor(in.barycentric, uniforms.lineWidth);
-  let wireColor = vec3f(1.0, 1.0, 1.0);
-  let wireMix = edge * uniforms.showWireframe;
-
-  // Blend wireframe over lit color, similar to the non-instanced version.
-  let finalColor = mix(litColor, wireColor, wireMix);
-
-  let a = max(wireMix, 1.0 - uniforms.alphaThreshold);
-  if (a < uniforms.alphaThreshold) {
+  if (edge < uniforms.alphaThreshold) {
     discard;
   }
+  let wireColor = vec3f(1.0, 1.0, 1.0);
+  return vec4f(wireColor * edge, edge);
+}
 
-  let alpha = max(wireMix, uniforms.fillOpacity);
-  return vec4f(finalColor, alpha);
+@fragment
+fn fs_line(in : LineOutput) -> @location(0) vec4f {
+  return vec4f(1.0, 1.0, 1.0, 1.0);
 }
 `;
 
@@ -410,6 +429,20 @@ async function init() {
     return buffer;
   });
 
+  const lineIndexBuffers = geometryTypes.map((geo) => {
+    const indices: number[] = [];
+    for (let i = 0; i < geo.data.vertexCount; i += 3) {
+      indices.push(i, i + 1, i + 1, i + 2, i + 2, i);
+    }
+    const indexData = new Uint32Array(indices);
+    const buffer = device.createBuffer({
+      size: indexData.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(buffer, 0, indexData);
+    return { buffer, indexCount: indexData.length };
+  });
+
   // Generate random positions and geometry assignments
   let seed = 12345;
   const random = () => {
@@ -418,7 +451,7 @@ async function init() {
   };
 
   const scatterSize = 8;
-  const instanceData: { position: [number, number, number]; geometryIndex: number }[] = [];
+  const instanceData: { position: [number, number, number]; geometryIndex: number; color: [number, number, number, number] }[] = [];
   for (let i = 0; i < maxInstances; i++) {
     instanceData.push({
       position: [
@@ -427,6 +460,7 @@ async function init() {
         (random() - 0.5) * scatterSize,
       ],
       geometryIndex: Math.floor(random() * geometryTypes.length),
+      color: [random(), random(), random(), 1.0],
     });
   }
 
@@ -442,10 +476,15 @@ async function init() {
         visibility: GPUShaderStage.VERTEX,
         buffer: { type: "read-only-storage" },
       },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "read-only-storage" },
+      },
     ],
   });
 
-  const pipeline = device.createRenderPipeline({
+  const litPipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
       module: shaderModule,
@@ -462,7 +501,7 @@ async function init() {
     },
     fragment: {
       module: shaderModule,
-      entryPoint: "fs_main",
+      entryPoint: "fs_lit",
       targets: [{
         format: canvasFormat,
         blend: {
@@ -478,6 +517,36 @@ async function init() {
     depthStencil: {
       depthWriteEnabled: true,
       depthCompare: "less",
+      depthBias: 1,
+      depthBiasSlopeScale: 0.5,
+      format: "depth24plus",
+    },
+  });
+
+  const wireframePipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_line",
+      buffers: [{
+        arrayStride: 48, // 12 floats * 4 bytes
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: "float32x3" },   // position
+        ],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_line",
+      targets: [{ format: canvasFormat }],
+    },
+    primitive: {
+      topology: "line-list",
+      cullMode: "back",
+    },
+    depthStencil: {
+      depthWriteEnabled: true,
+      depthCompare: "less-equal",
       format: "depth24plus",
     },
   });
@@ -493,6 +562,11 @@ async function init() {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
+  const instanceColorBuffer = device.createBuffer({
+    size: maxInstances * 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
@@ -504,6 +578,7 @@ async function init() {
     entries: [
       { binding: 0, resource: { buffer: uniformBuffer } },
       { binding: 1, resource: { buffer: modelMatrixBuffer } },
+      { binding: 2, resource: { buffer: instanceColorBuffer } },
     ],
   });
 
@@ -531,6 +606,7 @@ async function init() {
 
   // Pre-allocate model matrices array for max instances
   const modelMatricesData = new Float32Array(maxInstances * 16);
+  const instanceColorsData = new Float32Array(maxInstances * 4);
 
   let time = 0;
 
@@ -560,6 +636,7 @@ async function init() {
 
       for (const i of indices) {
         const { position } = instanceData[i];
+        const { color } = instanceData[i];
         const [posX, posY, posZ] = position;
 
         const rotationOffset = i * 0.2;
@@ -575,11 +652,13 @@ async function init() {
         modelMatrix = mat4.multiply(modelMatrix, scale);
 
         modelMatricesData.set(modelMatrix as Float32Array, offset * 16);
+        instanceColorsData.set(color, offset * 4);
         offset++;
       }
     }
 
     device.queue.writeBuffer(modelMatrixBuffer, 0, modelMatricesData);
+    device.queue.writeBuffer(instanceColorBuffer, 0, instanceColorsData);
   }
 
   function render() {
@@ -621,7 +700,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(pipeline);
+    renderPass.setPipeline(litPipeline);
     renderPass.setBindGroup(0, bindGroup);
 
     // Render each geometry type with batched instancing
@@ -633,6 +712,23 @@ async function init() {
         0,
         batch.startInstance
       );
+    }
+
+    if (params.showWireframe) {
+      renderPass.setPipeline(wireframePipeline);
+      renderPass.setBindGroup(0, bindGroup);
+      for (const batch of geometryBatches) {
+        renderPass.setVertexBuffer(0, vertexBuffers[batch.geometryIndex]);
+        const lineIndex = lineIndexBuffers[batch.geometryIndex];
+        renderPass.setIndexBuffer(lineIndex.buffer, "uint32");
+        renderPass.drawIndexed(
+          lineIndex.indexCount,
+          batch.instanceCount,
+          0,
+          0,
+          batch.startInstance
+        );
+      }
     }
 
     renderPass.end();
