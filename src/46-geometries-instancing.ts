@@ -124,10 +124,25 @@ async function init() {
 
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
-  // Number of instances in X and Y directions
-  const xCount = 4;
-  const yCount = 4;
-  const numInstances = xCount * yCount;
+  // Number of cube instances
+  const numInstances = 50;
+
+  // Generate random positions within a bounding cube (seeded for consistency)
+  let seed = 12345;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  const scatterSize = 8;
+  const instancePositions: [number, number, number][] = [];
+  for (let i = 0; i < numInstances; i++) {
+    instancePositions.push([
+      (random() - 0.5) * scatterSize,
+      (random() - 0.5) * scatterSize,
+      (random() - 0.5) * scatterSize,
+    ]);
+  }
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -214,8 +229,7 @@ async function init() {
   });
 
   const params = {
-    cubeSize: 1.0,
-    spacing: 2.5,
+    cubeSize: 0.6,
     showWireframe: true,
     lineWidth: 1.5,
     fillOpacity: 0.8,
@@ -223,8 +237,7 @@ async function init() {
   };
 
   const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement, title: "Instancing Settings" });
-  gui.add(params, "cubeSize", 0.5, 2.0).name("Cube Size");
-  gui.add(params, "spacing", 1.5, 5.0).name("Spacing");
+  gui.add(params, "cubeSize", 0.2, 1.5).name("Cube Size");
   gui.add(params, "rotationSpeed", 0.0, 3.0).name("Rotation Speed");
   gui.add(params, "showWireframe").name("Show Wireframe");
   gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
@@ -239,35 +252,25 @@ async function init() {
   let time = 0;
 
   function updateModelMatrices() {
-    const step = params.spacing;
-    const offsetX = ((xCount - 1) * step) / 2;
-    const offsetY = ((yCount - 1) * step) / 2;
+    for (let i = 0; i < numInstances; i++) {
+      const [posX, posY, posZ] = instancePositions[i];
 
-    for (let y = 0; y < yCount; y++) {
-      for (let x = 0; x < xCount; x++) {
-        const index = y * xCount + x;
+      // Each cube rotates at a slightly different rate
+      const rotationOffset = i * 0.2;
+      const angle = (time + rotationOffset) * params.rotationSpeed;
 
-        // Calculate position for this instance
-        const posX = x * step - offsetX;
-        const posY = y * step - offsetY;
+      // Create model matrix: translate then rotate then scale
+      const translation = mat4.translation(vec3.create(posX, posY, posZ));
+      const rotationY = mat4.rotationY(angle);
+      const rotationX = mat4.rotationX(angle * 0.5);
+      const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
 
-        // Each cube rotates at a slightly different rate
-        const rotationOffset = (index * 0.2);
-        const angle = (time + rotationOffset) * params.rotationSpeed;
+      let modelMatrix = mat4.multiply(translation, rotationY);
+      modelMatrix = mat4.multiply(modelMatrix, rotationX);
+      modelMatrix = mat4.multiply(modelMatrix, scale);
 
-        // Create model matrix: translate then rotate
-        const translation = mat4.translation(vec3.create(posX, posY, 0));
-        const rotationY = mat4.rotationY(angle);
-        const rotationX = mat4.rotationX(angle * 0.5);
-        const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
-
-        let modelMatrix = mat4.multiply(translation, rotationY);
-        modelMatrix = mat4.multiply(modelMatrix, rotationX);
-        modelMatrix = mat4.multiply(modelMatrix, scale);
-
-        // Copy to the array
-        modelMatricesData.set(modelMatrix as Float32Array, index * 16);
-      }
+      // Copy to the array
+      modelMatricesData.set(modelMatrix as Float32Array, i * 16);
     }
 
     device.queue.writeBuffer(modelMatrixBuffer, 0, modelMatricesData);
@@ -279,10 +282,10 @@ async function init() {
     // Update model matrices for all instances
     updateModelMatrices();
 
-    // Camera positioned to see all cubes
-    const cameraDistance = Math.max(xCount, yCount) * params.spacing * 0.8 + 5;
+    // Camera positioned to see all cubes in the scatter volume
+    const cameraDistance = scatterSize * 1.5;
     const viewMatrix = mat4.lookAt(
-      [0, 0, cameraDistance],
+      [cameraDistance * 0.7, cameraDistance * 0.5, cameraDistance],
       [0, 0, 0],
       [0, 1, 0]
     );

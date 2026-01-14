@@ -1,8 +1,8 @@
 # 46. Geometries Instancing
 
-In this tutorial, we combine the power of **GPU Instancing** with **procedural geometry** to render a grid of rotating cubes efficiently. This builds upon concepts from [13. Instancing](13-instancing.md) and the geometry tutorials (35-45).
+In this tutorial, we combine the power of **GPU Instancing** with **procedural geometry** to render a cloud of randomly scattered rotating cubes efficiently. This builds upon concepts from [13. Instancing](13-instancing.md) and the geometry tutorials (35-45).
 
-Instead of issuing separate draw calls for each cube, we render all 16 cubes with a **single draw call**, while each cube maintains its own unique transformation (position, rotation, scale).
+Instead of issuing separate draw calls for each cube, we render all 50 cubes with a **single draw call**, while each cube maintains its own unique transformation (position, rotation, scale). The cubes are scattered randomly within a bounding cube volume, creating a visually interesting 3D arrangement.
 
 **Key Learning Points:**
 
@@ -34,7 +34,7 @@ In [13. Instancing](13-instancing.md), we used a **Uniform Buffer** to store per
 ┌─────────────────────────────────────────────────────────┐
 │  Storage Buffer (binding 1)                             │
 │  - array<mat4x4f> modelMatrices                         │
-│  - One matrix per instance (16 instances = 1024 bytes)  │
+│  - One matrix per instance (50 instances = 3200 bytes)  │
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
@@ -176,7 +176,7 @@ function createCubeGeometry(size: number = 1.0) {
 ### Creating the Storage Buffer
 
 ```typescript
-const numInstances = xCount * yCount; // 4 * 4 = 16 instances
+const numInstances = 50;
 
 // Storage buffer for model matrices (64 bytes per mat4x4f)
 const modelMatrixBuffer = device.createBuffer({
@@ -206,50 +206,63 @@ const bindGroupLayout = device.createBindGroupLayout({
 });
 ```
 
-## 5. Per-Frame Matrix Updates
+## 5. Random Position Generation
 
-Each frame, we compute unique model matrices for each instance:
+At initialization, we generate random positions for each cube within a bounding volume:
+
+```typescript
+// Generate random positions within a bounding cube (seeded for consistency)
+let seed = 12345;
+const random = () => {
+  seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+  return seed / 0x7fffffff;
+};
+
+const scatterSize = 8;
+const instancePositions: [number, number, number][] = [];
+for (let i = 0; i < numInstances; i++) {
+  instancePositions.push([
+    (random() - 0.5) * scatterSize,
+    (random() - 0.5) * scatterSize,
+    (random() - 0.5) * scatterSize,
+  ]);
+}
+```
+
+## 6. Per-Frame Matrix Updates
+
+Each frame, we compute unique model matrices for each instance using the pre-generated positions:
 
 ```typescript
 const modelMatricesData = new Float32Array(numInstances * 16);
 
 function updateModelMatrices() {
-  const step = params.spacing;
-  const offsetX = ((xCount - 1) * step) / 2;
-  const offsetY = ((yCount - 1) * step) / 2;
+  for (let i = 0; i < numInstances; i++) {
+    const [posX, posY, posZ] = instancePositions[i];
 
-  for (let y = 0; y < yCount; y++) {
-    for (let x = 0; x < xCount; x++) {
-      const index = y * xCount + x;
+    // Each cube rotates at a slightly different rate
+    const rotationOffset = i * 0.2;
+    const angle = (time + rotationOffset) * params.rotationSpeed;
 
-      // Calculate position for this instance
-      const posX = x * step - offsetX;
-      const posY = y * step - offsetY;
+    // Create model matrix: translate then rotate then scale
+    const translation = mat4.translation(vec3.create(posX, posY, posZ));
+    const rotationY = mat4.rotationY(angle);
+    const rotationX = mat4.rotationX(angle * 0.5);
+    const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
 
-      // Each cube rotates at a slightly different rate
-      const rotationOffset = (index * 0.2);
-      const angle = (time + rotationOffset) * params.rotationSpeed;
+    let modelMatrix = mat4.multiply(translation, rotationY);
+    modelMatrix = mat4.multiply(modelMatrix, rotationX);
+    modelMatrix = mat4.multiply(modelMatrix, scale);
 
-      // Create model matrix: translate then rotate then scale
-      const translation = mat4.translation(vec3.create(posX, posY, 0));
-      const rotationY = mat4.rotationY(angle);
-      const rotationX = mat4.rotationX(angle * 0.5);
-      const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
-
-      let modelMatrix = mat4.multiply(translation, rotationY);
-      modelMatrix = mat4.multiply(modelMatrix, rotationX);
-      modelMatrix = mat4.multiply(modelMatrix, scale);
-
-      // Copy to the array
-      modelMatricesData.set(modelMatrix as Float32Array, index * 16);
-    }
+    // Copy to the array
+    modelMatricesData.set(modelMatrix as Float32Array, i * 16);
   }
 
   device.queue.writeBuffer(modelMatrixBuffer, 0, modelMatricesData);
 }
 ```
 
-## 6. The Draw Call
+## 7. The Draw Call
 
 The magic happens in a single draw call:
 
@@ -258,11 +271,11 @@ renderPass.setPipeline(pipeline);
 renderPass.setBindGroup(0, bindGroup);
 renderPass.setVertexBuffer(0, vertexBuffer);
 
-// Draw all 16 cubes with ONE draw call!
+// Draw all 50 cubes with ONE draw call!
 renderPass.draw(cubeData.vertexCount, numInstances);
 ```
 
-This executes the vertex shader `vertexCount * numInstances` times (36 vertices * 16 instances = 576 invocations), but it's all done in parallel on the GPU.
+This executes the vertex shader `vertexCount * numInstances` times (36 vertices * 50 instances = 1800 invocations), but it's all done in parallel on the GPU.
 
 ## Full Code
 
@@ -372,9 +385,25 @@ async function init() {
 
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
-  const xCount = 4;
-  const yCount = 4;
-  const numInstances = xCount * yCount;
+  // Number of cube instances
+  const numInstances = 50;
+
+  // Generate random positions within a bounding cube (seeded for consistency)
+  let seed = 12345;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  const scatterSize = 8;
+  const instancePositions: [number, number, number][] = [];
+  for (let i = 0; i < numInstances; i++) {
+    instancePositions.push([
+      (random() - 0.5) * scatterSize,
+      (random() - 0.5) * scatterSize,
+      (random() - 0.5) * scatterSize,
+    ]);
+  }
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -456,8 +485,7 @@ async function init() {
   });
 
   const params = {
-    cubeSize: 1.0,
-    spacing: 2.5,
+    cubeSize: 0.6,
     showWireframe: true,
     lineWidth: 1.5,
     fillOpacity: 0.8,
@@ -468,8 +496,7 @@ async function init() {
     container: document.getElementById("gui-container") as HTMLElement,
     title: "Instancing Settings"
   });
-  gui.add(params, "cubeSize", 0.5, 2.0).name("Cube Size");
-  gui.add(params, "spacing", 1.5, 5.0).name("Spacing");
+  gui.add(params, "cubeSize", 0.2, 1.5).name("Cube Size");
   gui.add(params, "rotationSpeed", 0.0, 3.0).name("Rotation Speed");
   gui.add(params, "showWireframe").name("Show Wireframe");
   gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
@@ -483,30 +510,22 @@ async function init() {
   let time = 0;
 
   function updateModelMatrices() {
-    const step = params.spacing;
-    const offsetX = ((xCount - 1) * step) / 2;
-    const offsetY = ((yCount - 1) * step) / 2;
+    for (let i = 0; i < numInstances; i++) {
+      const [posX, posY, posZ] = instancePositions[i];
 
-    for (let y = 0; y < yCount; y++) {
-      for (let x = 0; x < xCount; x++) {
-        const index = y * xCount + x;
-        const posX = x * step - offsetX;
-        const posY = y * step - offsetY;
+      const rotationOffset = i * 0.2;
+      const angle = (time + rotationOffset) * params.rotationSpeed;
 
-        const rotationOffset = (index * 0.2);
-        const angle = (time + rotationOffset) * params.rotationSpeed;
+      const translation = mat4.translation(vec3.create(posX, posY, posZ));
+      const rotationY = mat4.rotationY(angle);
+      const rotationX = mat4.rotationX(angle * 0.5);
+      const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
 
-        const translation = mat4.translation(vec3.create(posX, posY, 0));
-        const rotationY = mat4.rotationY(angle);
-        const rotationX = mat4.rotationX(angle * 0.5);
-        const scale = mat4.scaling(vec3.create(params.cubeSize, params.cubeSize, params.cubeSize));
+      let modelMatrix = mat4.multiply(translation, rotationY);
+      modelMatrix = mat4.multiply(modelMatrix, rotationX);
+      modelMatrix = mat4.multiply(modelMatrix, scale);
 
-        let modelMatrix = mat4.multiply(translation, rotationY);
-        modelMatrix = mat4.multiply(modelMatrix, rotationX);
-        modelMatrix = mat4.multiply(modelMatrix, scale);
-
-        modelMatricesData.set(modelMatrix as Float32Array, index * 16);
-      }
+      modelMatricesData.set(modelMatrix as Float32Array, i * 16);
     }
 
     device.queue.writeBuffer(modelMatrixBuffer, 0, modelMatricesData);
@@ -516,8 +535,12 @@ async function init() {
     time += 0.01;
     updateModelMatrices();
 
-    const cameraDistance = Math.max(xCount, yCount) * params.spacing * 0.8 + 5;
-    const viewMatrix = mat4.lookAt([0, 0, cameraDistance], [0, 0, 0], [0, 1, 0]);
+    const cameraDistance = scatterSize * 1.5;
+    const viewMatrix = mat4.lookAt(
+      [cameraDistance * 0.7, cameraDistance * 0.5, cameraDistance],
+      [0, 0, 0],
+      [0, 1, 0]
+    );
     const viewProjectionMatrix = mat4.multiply(projectionMatrix, viewMatrix);
 
     device.queue.writeBuffer(uniformBuffer, 0, viewProjectionMatrix as Float32Array);
