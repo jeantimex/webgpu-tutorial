@@ -523,6 +523,43 @@ async function init() {
     },
   });
 
+  const litNoDepthPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 48, // 12 floats * 4 bytes
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: "float32x3" },   // position
+          { shaderLocation: 1, offset: 12, format: "float32x3" },  // barycentric
+          { shaderLocation: 2, offset: 24, format: "float32x3" },  // color
+          { shaderLocation: 3, offset: 36, format: "float32x3" },  // normal
+        ],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_lit",
+      targets: [{
+        format: canvasFormat,
+        blend: {
+          color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+          alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+        },
+      }],
+    },
+    primitive: {
+      topology: "triangle-list",
+      cullMode: "back",
+    },
+    depthStencil: {
+      depthWriteEnabled: false,
+      depthCompare: "less",
+      format: "depth24plus",
+    },
+  });
+
   const wireframePipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     vertex: {
@@ -700,7 +737,7 @@ async function init() {
       },
     });
 
-    renderPass.setPipeline(litPipeline);
+    renderPass.setPipeline(params.fillOpacity < 1.0 ? litNoDepthPipeline : litPipeline);
     renderPass.setBindGroup(0, bindGroup);
 
     // Render each geometry type with batched instancing
