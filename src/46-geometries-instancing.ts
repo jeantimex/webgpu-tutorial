@@ -124,8 +124,8 @@ async function init() {
 
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
-  // Number of cube instances
-  const numInstances = 50;
+  // Maximum number of instances (pre-allocate for this)
+  const maxInstances = 1000000;
 
   // Generate random positions within a bounding cube (seeded for consistency)
   let seed = 12345;
@@ -136,7 +136,7 @@ async function init() {
 
   const scatterSize = 8;
   const instancePositions: [number, number, number][] = [];
-  for (let i = 0; i < numInstances; i++) {
+  for (let i = 0; i < maxInstances; i++) {
     instancePositions.push([
       (random() - 0.5) * scatterSize,
       (random() - 0.5) * scatterSize,
@@ -210,7 +210,7 @@ async function init() {
 
   // Storage buffer for model matrices (64 bytes per mat4x4f)
   const modelMatrixBuffer = device.createBuffer({
-    size: numInstances * 64,
+    size: maxInstances * 64,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
 
@@ -229,6 +229,7 @@ async function init() {
   });
 
   const params = {
+    numInstances: 100,
     cubeSize: 0.6,
     showWireframe: true,
     lineWidth: 1.5,
@@ -237,6 +238,7 @@ async function init() {
   };
 
   const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement, title: "Instancing Settings" });
+  gui.add(params, "numInstances", [1, 10, 100, 1000, 10000, 100000, 1000000]).name("Num Cubes");
   gui.add(params, "cubeSize", 0.2, 1.5).name("Cube Size");
   gui.add(params, "rotationSpeed", 0.0, 3.0).name("Rotation Speed");
   gui.add(params, "showWireframe").name("Show Wireframe");
@@ -246,13 +248,13 @@ async function init() {
   const aspect = canvas.width / canvas.height;
   const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
 
-  // Pre-allocate model matrices array
-  const modelMatricesData = new Float32Array(numInstances * 16);
+  // Pre-allocate model matrices array for max instances
+  const modelMatricesData = new Float32Array(maxInstances * 16);
 
   let time = 0;
 
   function updateModelMatrices() {
-    for (let i = 0; i < numInstances; i++) {
+    for (let i = 0; i < params.numInstances; i++) {
       const [posX, posY, posZ] = instancePositions[i];
 
       // Each cube rotates at a slightly different rate
@@ -321,7 +323,7 @@ async function init() {
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     // Draw all instances with a single draw call
-    renderPass.draw(cubeData.vertexCount, numInstances);
+    renderPass.draw(cubeData.vertexCount, params.numInstances);
     renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
