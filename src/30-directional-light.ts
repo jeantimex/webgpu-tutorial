@@ -1,12 +1,13 @@
 import { initWebGPU } from "./utils/webgpu-util";
 import { mat3, mat4, vec3 } from "wgpu-matrix";
+import GUI from "lil-gui";
 
 const shaderCode = `
 struct Uniforms {
   mvpMatrix : mat4x4f,
   modelMatrix : mat4x4f,
   normalMatrix : mat3x3f,
-  lightDir : vec3f,
+  lightDirIntensity : vec4f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -32,10 +33,10 @@ fn vs_main(
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4f {
   let N = normalize(in.normal);
-  let L = normalize(uniforms.lightDir);
+  let L = normalize(uniforms.lightDirIntensity.xyz);
   
   // Diffuse only
-  let diffuse = max(dot(N, L), 0.0);
+  let diffuse = max(dot(N, L), 0.0) * max(uniforms.lightDirIntensity.w, 0.0);
   
   let baseColor = vec3f(1.0, 0.0, 0.0); // Red
   return vec4f(baseColor * diffuse, 1.0);
@@ -153,13 +154,28 @@ async function init() {
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
+  const settings = {
+    lightDirX: 1.0,
+    lightDirY: 1.0,
+    lightDirZ: 1.0,
+    intensity: 1.0,
+    animate: true,
+  };
+  const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement });
+  gui.add(settings, "lightDirX", -1.0, 1.0).name("Light Dir X");
+  gui.add(settings, "lightDirY", -1.0, 1.0).name("Light Dir Y");
+  gui.add(settings, "lightDirZ", -1.0, 1.0).name("Light Dir Z");
+  gui.add(settings, "intensity", 0.0, 2.0).name("Intensity");
+  gui.add(settings, "animate").name("Animate");
+
   let angle = 0;
-  const lightDir = vec3.normalize([1.0, 1.0, 1.0]);
   const normalMatrix = mat3.create();
   const normalMatrixData = new Float32Array(12);
 
   function render() {
-    angle += 0.01;
+    if (settings.animate) {
+      angle += 0.01;
+    }
     
     const modelMatrix = mat4.multiply(mat4.rotationY(angle), mat4.rotationX(angle * 0.5));
     const viewMatrix = mat4.lookAt([2.5, 2.5, 2.5], [0, 0, 0], [0, 1, 0]);
@@ -174,7 +190,16 @@ async function init() {
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
     device.queue.writeBuffer(uniformBuffer, 64, modelMatrix as Float32Array);
     device.queue.writeBuffer(uniformBuffer, 128, normalMatrixData);
-    device.queue.writeBuffer(uniformBuffer, 176, lightDir as Float32Array);
+    const lightDir = vec3.normalize([
+      settings.lightDirX,
+      settings.lightDirY,
+      settings.lightDirZ,
+    ]);
+    device.queue.writeBuffer(
+      uniformBuffer,
+      176,
+      new Float32Array([lightDir[0], lightDir[1], lightDir[2], settings.intensity])
+    );
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();

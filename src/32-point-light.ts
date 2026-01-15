@@ -1,11 +1,13 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4, vec3 } from "wgpu-matrix";
+import { mat3, mat4, vec3 } from "wgpu-matrix";
+import GUI from "lil-gui";
 
 const shaderCode = `
 struct Uniforms {
   mvpMatrix : mat4x4f,
   modelMatrix : mat4x4f,
-  lightPos : vec3f, // Position, not direction!
+  normalMatrix : mat3x3f,
+  lightPosIntensity : vec4f, // Position.xyz + intensity
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -25,7 +27,7 @@ fn vs_main(
   out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
   
   // Transform normal to world space
-  out.normal = (uniforms.modelMatrix * vec4f(normal, 0.0)).xyz;
+  out.normal = uniforms.normalMatrix * normal;
   
   // Transform position to world space
   out.worldPos = (uniforms.modelMatrix * vec4f(pos, 1.0)).xyz;
@@ -38,7 +40,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
   let N = normalize(in.normal);
   
   // Calculate direction FROM surface TO light
-  let L = normalize(uniforms.lightPos - in.worldPos);
+  let L = normalize(uniforms.lightPosIntensity.xyz - in.worldPos);
   
   // Diffuse term
   let diffuse = max(dot(N, L), 0.0);
@@ -48,7 +50,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
   // Simple ambient to see the back
   let ambient = 0.1;
   
-  let lighting = min(diffuse + ambient, 1.0);
+  let lighting = min(diffuse * max(uniforms.lightPosIntensity.w, 0.0) + ambient, 1.0);
   
   return vec4f(baseColor * lighting, 1.0);
 }
@@ -62,24 +64,46 @@ async function init() {
   // prettier-ignore
   const vertexData = new Float32Array([
     // Position           // Normal
-    -0.5, -0.5,  0.5,     -0.577, -0.577,  0.577, // 0
-     0.5, -0.5,  0.5,      0.577, -0.577,  0.577, // 1
-     0.5,  0.5,  0.5,      0.577,  0.577,  0.577, // 2
-    -0.5,  0.5,  0.5,     -0.577,  0.577,  0.577, // 3
-    -0.5, -0.5, -0.5,     -0.577, -0.577, -0.577, // 4
-     0.5, -0.5, -0.5,      0.577, -0.577, -0.577, // 5
-     0.5,  0.5, -0.5,      0.577,  0.577, -0.577, // 6
-    -0.5,  0.5, -0.5,     -0.577,  0.577, -0.577, // 7
+    // Front (+Z)
+    -0.5, -0.5,  0.5,      0,  0,  1,
+     0.5, -0.5,  0.5,      0,  0,  1,
+     0.5,  0.5,  0.5,      0,  0,  1,
+    -0.5,  0.5,  0.5,      0,  0,  1,
+    // Right (+X)
+     0.5, -0.5,  0.5,      1,  0,  0,
+     0.5, -0.5, -0.5,      1,  0,  0,
+     0.5,  0.5, -0.5,      1,  0,  0,
+     0.5,  0.5,  0.5,      1,  0,  0,
+    // Back (-Z)
+     0.5, -0.5, -0.5,      0,  0, -1,
+    -0.5, -0.5, -0.5,      0,  0, -1,
+    -0.5,  0.5, -0.5,      0,  0, -1,
+     0.5,  0.5, -0.5,      0,  0, -1,
+    // Left (-X)
+    -0.5, -0.5, -0.5,     -1,  0,  0,
+    -0.5, -0.5,  0.5,     -1,  0,  0,
+    -0.5,  0.5,  0.5,     -1,  0,  0,
+    -0.5,  0.5, -0.5,     -1,  0,  0,
+    // Top (+Y)
+    -0.5,  0.5,  0.5,      0,  1,  0,
+     0.5,  0.5,  0.5,      0,  1,  0,
+     0.5,  0.5, -0.5,      0,  1,  0,
+    -0.5,  0.5, -0.5,      0,  1,  0,
+    // Bottom (-Y)
+    -0.5, -0.5, -0.5,      0, -1,  0,
+     0.5, -0.5, -0.5,      0, -1,  0,
+     0.5, -0.5,  0.5,      0, -1,  0,
+    -0.5, -0.5,  0.5,      0, -1,  0,
   ]);
 
   // prettier-ignore
   const indexData = new Uint16Array([
-    0, 1, 2,  2, 3, 0, // Front
-    1, 5, 6,  6, 2, 1, // Right
-    5, 4, 7,  7, 6, 5, // Back
-    4, 0, 3,  3, 7, 4, // Left
-    3, 2, 6,  6, 7, 3, // Top
-    4, 5, 1,  1, 0, 4, // Bottom
+    0, 1, 2,  2, 3, 0,       // Front
+    4, 5, 6,  6, 7, 4,       // Right
+    8, 9, 10, 10, 11, 8,     // Back
+    12, 13, 14, 14, 15, 12,  // Left
+    16, 17, 18, 18, 19, 16,  // Top
+    20, 21, 22, 22, 23, 20,  // Bottom
   ]);
 
   const vertexBuffer = device.createBuffer({
@@ -95,8 +119,8 @@ async function init() {
   device.queue.writeBuffer(indexBuffer, 0, indexData);
 
   // --- 2. Uniforms ---
-  // MVP(64) + Model(64) + LightPos(16) = 144 bytes
-  const uniformBufferSize = 144;
+  // MVP(64) + Model(64) + Normal(48) + LightPos(16) = 192 bytes
+  const uniformBufferSize = 192;
   const uniformBuffer = device.createBuffer({
     size: uniformBufferSize,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -142,23 +166,53 @@ async function init() {
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
+  const settings = {
+    lightPosX: 2.0,
+    lightPosY: 2.0,
+    lightPosZ: 2.0,
+    intensity: 1.0,
+    animate: true,
+  };
+  const gui = new GUI({ container: document.getElementById("gui-container") as HTMLElement });
+  gui.add(settings, "lightPosX", -5.0, 5.0).name("Light Pos X");
+  gui.add(settings, "lightPosY", -5.0, 5.0).name("Light Pos Y");
+  gui.add(settings, "lightPosZ", -5.0, 5.0).name("Light Pos Z");
+  gui.add(settings, "intensity", 0.0, 2.0).name("Intensity");
+  gui.add(settings, "animate").name("Animate");
+
   let angle = 0;
+  const normalMatrix = mat3.create();
+  const normalMatrixData = new Float32Array(12);
 
   function render() {
-    angle += 0.01;
+    if (settings.animate) {
+      angle += 0.01;
+    }
     
     // Cube Model Matrix
     const modelMatrix = mat4.multiply(mat4.rotationY(angle), mat4.rotationX(angle * 0.5));
     const viewMatrix = mat4.lookAt([2.5, 2.5, 2.5], [0, 0, 0], [0, 1, 0]);
     const mvpMatrix = mat4.multiply(projectionMatrix, mat4.multiply(viewMatrix, modelMatrix));
 
-    // Fixed light position
-    const lightPos = [2.0, 2.0, 2.0];
+    mat3.fromMat4(modelMatrix, normalMatrix);
+    mat3.invert(normalMatrix, normalMatrix);
+    mat3.transpose(normalMatrix, normalMatrix);
+    normalMatrixData.set(normalMatrix);
 
     // Upload Uniforms
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
     device.queue.writeBuffer(uniformBuffer, 64, modelMatrix as Float32Array);
-    device.queue.writeBuffer(uniformBuffer, 128, new Float32Array(lightPos));
+    device.queue.writeBuffer(uniformBuffer, 128, normalMatrixData);
+    device.queue.writeBuffer(
+      uniformBuffer,
+      176,
+      new Float32Array([
+        settings.lightPosX,
+        settings.lightPosY,
+        settings.lightPosZ,
+        settings.intensity,
+      ])
+    );
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
