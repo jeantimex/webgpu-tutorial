@@ -51,6 +51,7 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 43 | [Shadow Mapping](43-shadow-mapping.md) | Learn how to implement basic shadow mapping using a depth pass and comparison samplers. |
 | 44 | [Random Geometries](44-random-geometries.md) | Render multiple objects with different geometries and wireframes using per-object bind groups. |
 | 45 | [Rock Geometry](45-rock-geometry.md) | Generate an organic rock shape using randomized vertex radii and per-face colors. |
+| 46 | [Geometries Instancing](46-geometries-instancing.md) | Render multiple cubes efficiently using GPU instancing with storage buffers for per-instance transforms. |
 
 ## Getting Started
 

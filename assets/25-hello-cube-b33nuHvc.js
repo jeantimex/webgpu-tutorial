@@ -1,4 +1,4 @@
-import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css               */import{i as P}from"./webgpu-util-BApOR-AX.js";import{m as o}from"./wgpu-matrix.module-BcnFMekQ.js";const c=`
+import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css               */import{i as P}from"./webgpu-util-BApOR-AX.js";import{m as o}from"./wgpu-matrix.module-Cf1N7Xmi.js";const c=`
 struct Uniforms {
   mvpMatrix : mat4x4f,
 }
