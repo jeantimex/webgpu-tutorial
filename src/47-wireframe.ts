@@ -218,9 +218,6 @@ async function init() {
     throw new Error("WebGPU context not found.");
   }
 
-  const devicePixelRatio = window.devicePixelRatio || 1;
-  canvas.width = canvas.clientWidth * devicePixelRatio;
-  canvas.height = canvas.clientHeight * devicePixelRatio;
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
   context.configure({
     device,
@@ -526,7 +523,7 @@ async function init() {
       depthTexture.createView();
 
     const fov = (60 * Math.PI) / 180;
-    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const aspect = canvas.width / canvas.height;
     const projection = mat4.perspective(fov, aspect, 0.1, 1000);
 
     const view = mat4.lookAt([-300, 0, 300], [0, 0, 0], [0, 1, 0]);
