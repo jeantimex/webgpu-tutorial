@@ -1,10 +1,11 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4, vec3 } from "wgpu-matrix";
+import { mat3, mat4, vec3 } from "wgpu-matrix";
 
 const shaderCode = `
 struct Uniforms {
   mvpMatrix : mat4x4f,
   modelMatrix : mat4x4f,
+  normalMatrix : mat3x3f,
   lightDir : vec3f,
 }
 
@@ -24,7 +25,7 @@ fn vs_main(
   out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
   
   // Transform normal to world space
-  out.normal = (uniforms.modelMatrix * vec4f(normal, 0.0)).xyz;
+  out.normal = uniforms.normalMatrix * normal;
   return out;
 }
 
@@ -46,29 +47,51 @@ async function init() {
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
   // --- 1. Geometry Data (Pos + Normal) ---
-  // 8 Vertices
+  // 24 Vertices (per-face normals)
   // prettier-ignore
   const vertexData = new Float32Array([
-    // Position           // Normal (approximate for corners)
-    -0.5, -0.5,  0.5,     -0.577, -0.577,  0.577, // 0
-     0.5, -0.5,  0.5,      0.577, -0.577,  0.577, // 1
-     0.5,  0.5,  0.5,      0.577,  0.577,  0.577, // 2
-    -0.5,  0.5,  0.5,     -0.577,  0.577,  0.577, // 3
-    -0.5, -0.5, -0.5,     -0.577, -0.577, -0.577, // 4
-     0.5, -0.5, -0.5,      0.577, -0.577, -0.577, // 5
-     0.5,  0.5, -0.5,      0.577,  0.577, -0.577, // 6
-    -0.5,  0.5, -0.5,     -0.577,  0.577, -0.577, // 7
+    // Position           // Normal
+    // Front (+Z)
+    -0.5, -0.5,  0.5,      0,  0,  1,
+     0.5, -0.5,  0.5,      0,  0,  1,
+     0.5,  0.5,  0.5,      0,  0,  1,
+    -0.5,  0.5,  0.5,      0,  0,  1,
+    // Right (+X)
+     0.5, -0.5,  0.5,      1,  0,  0,
+     0.5, -0.5, -0.5,      1,  0,  0,
+     0.5,  0.5, -0.5,      1,  0,  0,
+     0.5,  0.5,  0.5,      1,  0,  0,
+    // Back (-Z)
+     0.5, -0.5, -0.5,      0,  0, -1,
+    -0.5, -0.5, -0.5,      0,  0, -1,
+    -0.5,  0.5, -0.5,      0,  0, -1,
+     0.5,  0.5, -0.5,      0,  0, -1,
+    // Left (-X)
+    -0.5, -0.5, -0.5,     -1,  0,  0,
+    -0.5, -0.5,  0.5,     -1,  0,  0,
+    -0.5,  0.5,  0.5,     -1,  0,  0,
+    -0.5,  0.5, -0.5,     -1,  0,  0,
+    // Top (+Y)
+    -0.5,  0.5,  0.5,      0,  1,  0,
+     0.5,  0.5,  0.5,      0,  1,  0,
+     0.5,  0.5, -0.5,      0,  1,  0,
+    -0.5,  0.5, -0.5,      0,  1,  0,
+    // Bottom (-Y)
+    -0.5, -0.5, -0.5,      0, -1,  0,
+     0.5, -0.5, -0.5,      0, -1,  0,
+     0.5, -0.5,  0.5,      0, -1,  0,
+    -0.5, -0.5,  0.5,      0, -1,  0,
   ]);
 
   // Indices
   // prettier-ignore
   const indexData = new Uint16Array([
-    0, 1, 2,  2, 3, 0, // Front
-    1, 5, 6,  6, 2, 1, // Right
-    5, 4, 7,  7, 6, 5, // Back
-    4, 0, 3,  3, 7, 4, // Left
-    3, 2, 6,  6, 7, 3, // Top
-    4, 5, 1,  1, 0, 4, // Bottom
+    0, 1, 2,  2, 3, 0,       // Front
+    4, 5, 6,  6, 7, 4,       // Right
+    8, 9, 10, 10, 11, 8,     // Back
+    12, 13, 14, 14, 15, 12,  // Left
+    16, 17, 18, 18, 19, 16,  // Top
+    20, 21, 22, 22, 23, 20,  // Bottom
   ]);
 
   const vertexBuffer = device.createBuffer({
@@ -84,7 +107,7 @@ async function init() {
   device.queue.writeBuffer(indexBuffer, 0, indexData);
 
   // --- 2. Uniforms ---
-  const uniformBufferSize = 144; // 64 (mvp) + 64 (model) + 16 (lightDir + pad)
+  const uniformBufferSize = 192; // 64 (mvp) + 64 (model) + 48 (normal) + 16 (lightDir + pad)
   const uniformBuffer = device.createBuffer({
     size: uniformBufferSize,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -132,6 +155,8 @@ async function init() {
 
   let angle = 0;
   const lightDir = vec3.normalize([1.0, 1.0, 1.0]);
+  const normalMatrix = mat3.create();
+  const normalMatrixData = new Float32Array(12);
 
   function render() {
     angle += 0.01;
@@ -140,10 +165,16 @@ async function init() {
     const viewMatrix = mat4.lookAt([2.5, 2.5, 2.5], [0, 0, 0], [0, 1, 0]);
     const mvpMatrix = mat4.multiply(projectionMatrix, mat4.multiply(viewMatrix, modelMatrix));
 
+    mat3.fromMat4(modelMatrix, normalMatrix);
+    mat3.invert(normalMatrix, normalMatrix);
+    mat3.transpose(normalMatrix, normalMatrix);
+    normalMatrixData.set(normalMatrix);
+
     // Upload Uniforms
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
     device.queue.writeBuffer(uniformBuffer, 64, modelMatrix as Float32Array);
-    device.queue.writeBuffer(uniformBuffer, 128, lightDir as Float32Array);
+    device.queue.writeBuffer(uniformBuffer, 128, normalMatrixData);
+    device.queue.writeBuffer(uniformBuffer, 176, lightDir as Float32Array);
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
