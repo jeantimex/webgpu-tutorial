@@ -1,11 +1,12 @@
 import { initWebGPU } from "./utils/webgpu-util";
-import { mat4, vec3 } from "wgpu-matrix";
+import { mat4 } from "wgpu-matrix";
 import GUI from "lil-gui";
 
 const shaderCode = `
 struct Uniforms {
   mvpMatrix : mat4x4f,
-  ambientIntensity : f32,
+  ambient : vec4f,
+  baseColor : vec4f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -23,10 +24,10 @@ fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
 
 @fragment
 fn fs_main() -> @location(0) vec4f {
-  let baseColor = vec3f(1.0, 0.0, 0.0); // Red
+  let baseColor = uniforms.baseColor.rgb;
   
   // Ambient Light: Uniform brightness everywhere
-  let lighting = baseColor * uniforms.ambientIntensity;
+  let lighting = baseColor * clamp(uniforms.ambient.x, 0.0, 1.0);
   
   return vec4f(lighting, 1.0);
 }
@@ -73,8 +74,8 @@ async function init() {
   device.queue.writeBuffer(indexBuffer, 0, indexData);
 
   // --- 2. Uniforms ---
-  // MVP Matrix (64 bytes) + Ambient Intensity (4 bytes) + Padding (12 bytes) = 80 bytes -> aligned to 16 bytes = 80
-  const uniformBufferSize = 80;
+  // MVP Matrix (64 bytes) + Ambient (16 bytes) + BaseColor (16 bytes) = 96 bytes
+  const uniformBufferSize = 96;
   const uniformBuffer = device.createBuffer({
     size: uniformBufferSize,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -120,9 +121,11 @@ async function init() {
   // --- 4. GUI & State ---
   const settings = {
     ambientIntensity: 0.5,
+    baseColor: [255, 0, 0],
   };
   const gui = new GUI({ container: document.getElementById('gui-container') as HTMLElement });
   gui.add(settings, "ambientIntensity", 0.0, 1.0).name("Ambient Intensity");
+  gui.addColor(settings, "baseColor").name("Base Color");
 
   let angle = 0;
 
@@ -135,7 +138,17 @@ async function init() {
 
     // Upload Uniforms
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
-    device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([settings.ambientIntensity]));
+    device.queue.writeBuffer(
+      uniformBuffer,
+      64,
+      new Float32Array([settings.ambientIntensity, 0, 0, 0])
+    );
+    const [r, g, b] = normalizeColor(settings.baseColor);
+    device.queue.writeBuffer(
+      uniformBuffer,
+      80,
+      new Float32Array([r, g, b, 1])
+    );
 
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
@@ -170,3 +183,20 @@ async function init() {
 }
 
 init().catch(console.error);
+  function normalizeColor(color: string | number[]) {
+    if (Array.isArray(color)) {
+      const [r, g, b] = color;
+      const scale = Math.max(r, g, b) > 1 ? 255 : 1;
+      return [r / scale, g / scale, b / scale];
+    }
+
+    const hex = color.trim().replace("#", "");
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+      return [r, g, b];
+    }
+
+    return [1, 0, 0];
+  }
