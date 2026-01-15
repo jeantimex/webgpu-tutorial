@@ -1,360 +1,600 @@
-import { initWebGPU } from "./utils/webgpu-util";
-import { mat4 } from "wgpu-matrix";
+import { mat3, mat4 } from "wgpu-matrix";
 import GUI from "lil-gui";
+import { createSphereMesh } from "../meshes/sphere";
 
-const shaderCode = `
+const solidColorLitWGSL = `
 struct Uniforms {
-  mvpMatrix : mat4x4f,
-  lineWidth : f32,
-  fillOpacity : f32,
-  showWireframe : f32,
+  worldViewProjectionMatrix: mat4x4f,
+  worldMatrix: mat4x4f,
+  color: vec4f,
+};
+
+struct Vertex {
+  @location(0) position: vec4f,
+  @location(1) normal: vec3f,
+};
+
+struct VSOut {
+  @builtin(position) position: vec4f,
+  @location(0) normal: vec3f,
+};
+
+@group(0) @binding(0) var<uniform> uni: Uniforms;
+
+@vertex fn vs(vin: Vertex) -> VSOut {
+  var vOut: VSOut;
+  vOut.position = uni.worldViewProjectionMatrix * vin.position;
+  vOut.normal = (uni.worldMatrix * vec4f(vin.normal, 0)).xyz;
+  return vOut;
 }
 
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-
-struct VertexOutput {
-  @builtin(position) position : vec4f,
-  @location(0) barycentric : vec3f,
-}
-
-@vertex
-fn vs_main(
-  @location(0) pos : vec3f,
-  @location(1) barycentric : vec3f
-) -> VertexOutput {
-  var out : VertexOutput;
-  out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
-  out.barycentric = barycentric;
-  return out;
-}
-
-// Edge detection using barycentric coordinates
-fn edgeFactor(bary : vec3f, width : f32) -> f32 {
-  let d = fwidth(bary);
-  let a3 = smoothstep(vec3f(0.0), d * width, bary);
-  return min(min(a3.x, a3.y), a3.z);
-}
-
-@fragment
-fn fs_main(@location(0) bary : vec3f) -> @location(0) vec4f {
-  let edge = 1.0 - edgeFactor(bary, uniforms.lineWidth);
-
-  // Wireframe color (white) and fill color (red)
-  let wireColor = vec3f(1.0, 1.0, 1.0);
-  let fillColor = vec3f(1.0, 0.2, 0.2);
-
-  // Calculate wireframe alpha (only if wireframe is enabled)
-  let wireAlpha = edge * uniforms.showWireframe;
-
-  // Composite: wireframe over fill using "over" operator
-  let fillAlpha = uniforms.fillOpacity * (1.0 - wireAlpha);
-  let totalAlpha = wireAlpha + fillAlpha;
-
-  if (totalAlpha < 0.01) {
-    discard;
-  }
-
-  // Premultiplied alpha blend
-  let color = (wireColor * wireAlpha + fillColor * fillAlpha) / totalAlpha;
-
-  return vec4f(color, totalAlpha);
+@fragment fn fs(vin: VSOut) -> @location(0) vec4f {
+  let lightDirection = normalize(vec3f(4, 10, 6));
+  let light = dot(normalize(vin.normal), lightDirection) * 0.5 + 0.5;
+  return vec4f(uni.color.rgb * light, uni.color.a);
 }
 `;
 
-// Procedural Sphere Generator with Barycentric Coordinates
-function createSphereGeometry(
-  radius: number,
-  widthSegments: number,
-  heightSegments: number,
-  phiStart: number,
-  phiLength: number,
-  thetaStart: number,
-  thetaLength: number
+const wireframeWGSL = `
+struct Uniforms {
+  worldViewProjectionMatrix: mat4x4f,
+  worldMatrix: mat4x4f,
+  color: vec4f,
+};
+
+struct LineUniforms {
+  stride: u32,
+  thickness: f32,
+  alphaThreshold: f32,
+};
+
+struct VSOut {
+  @builtin(position) position: vec4f,
+};
+
+@group(0) @binding(0) var<uniform> uni: Uniforms;
+@group(0) @binding(1) var<storage, read> positions: array<f32>;
+@group(0) @binding(2) var<storage, read> indices: array<u32>;
+@group(0) @binding(3) var<uniform> line: LineUniforms;
+
+@vertex fn vsIndexedU32(@builtin(vertex_index) vNdx: u32) -> VSOut {
+  let triNdx = vNdx / 6;
+  let vertNdx = (vNdx % 2 + vNdx / 2) % 3;
+  let index = indices[triNdx * 3 + vertNdx];
+
+  let pNdx = index * line.stride;
+  let position = vec4f(positions[pNdx], positions[pNdx + 1], positions[pNdx + 2], 1);
+
+  var vOut: VSOut;
+  vOut.position = uni.worldViewProjectionMatrix * position;
+  return vOut;
+}
+
+@fragment fn fs() -> @location(0) vec4f {
+  return uni.color + vec4f(0.5);
+}
+
+struct BarycentricCoordinateBasedVSOutput {
+  @builtin(position) position: vec4f,
+  @location(0) barycenticCoord: vec3f,
+};
+
+@vertex fn vsIndexedU32BarycentricCoordinateBasedLines(
+  @builtin(vertex_index) vNdx: u32
+) -> BarycentricCoordinateBasedVSOutput {
+  let vertNdx = vNdx % 3;
+  let index = indices[vNdx];
+
+  let pNdx = index * line.stride;
+  let position = vec4f(positions[pNdx], positions[pNdx + 1], positions[pNdx + 2], 1);
+
+  var vsOut: BarycentricCoordinateBasedVSOutput;
+  vsOut.position = uni.worldViewProjectionMatrix * position;
+
+  vsOut.barycenticCoord = vec3f(0);
+  vsOut.barycenticCoord[vertNdx] = 1.0;
+  return vsOut;
+}
+
+fn edgeFactor(bary: vec3f) -> f32 {
+  let d = fwidth(bary);
+  let a3 = smoothstep(vec3f(0.0), d * line.thickness, bary);
+  return min(min(a3.x, a3.y), a3.z);
+}
+
+@fragment fn fsBarycentricCoordinateBasedLines(
+  v: BarycentricCoordinateBasedVSOutput
+) -> @location(0) vec4f {
+  let a = 1.0 - edgeFactor(v.barycenticCoord);
+  if (a < line.alphaThreshold) {
+    discard;
+  }
+
+  return vec4((uni.color.rgb + 0.5) * a, a);
+}
+`;
+
+const settings = {
+  barycentricCoordinatesBased: false,
+  thickness: 2,
+  alphaThreshold: 0.5,
+  animate: true,
+  lines: true,
+  depthBias: 1,
+  depthBiasSlopeScale: 0.5,
+  models: true,
+};
+
+const sphereSettings = {
+  radius: 20,
+  widthSegments: 32,
+  heightSegments: 16,
+};
+
+type TypedArrayView = Float32Array | Uint32Array;
+
+type Model = {
+  vertexBuffer: GPUBuffer;
+  indexBuffer: GPUBuffer;
+  indexFormat: GPUIndexFormat;
+  vertexCount: number;
+};
+
+function createBufferWithData(
+  device: GPUDevice,
+  data: TypedArrayView,
+  usage: GPUBufferUsageFlags
 ) {
-  // For barycentric coords, we need non-indexed geometry
-  const vertices: number[] = []; // Interleaved: pos(3) + bary(3) = 6 floats per vertex
+  const buffer = device.createBuffer({
+    size: data.byteLength,
+    usage,
+  });
+  device.queue.writeBuffer(buffer, 0, data);
+  return buffer;
+}
 
-  // Temporary storage for indexed positions
-  const tempPositions: number[][] = [];
-  const grid: number[][] = [];
-
-  // Generate vertex positions
-  for (let iy = 0; iy <= heightSegments; iy++) {
-    const verticesRow: number[] = [];
-    const v = iy / heightSegments;
-
-    for (let ix = 0; ix <= widthSegments; ix++) {
-      const u = ix / widthSegments;
-
-      const px =
-        -radius *
-        Math.cos(phiStart + u * phiLength) *
-        Math.sin(thetaStart + v * thetaLength);
-      const py = radius * Math.cos(thetaStart + v * thetaLength);
-      const pz =
-        radius *
-        Math.sin(phiStart + u * phiLength) *
-        Math.sin(thetaStart + v * thetaLength);
-
-      tempPositions.push([px, py, pz]);
-      verticesRow.push(tempPositions.length - 1);
-    }
-    grid.push(verticesRow);
+function createSphereTypedArrays(
+  radius: number,
+  widthSegments = 32,
+  heightSegments = 16
+) {
+  const { vertices: verticesWithUVs, indices } = createSphereMesh(
+    radius,
+    widthSegments,
+    heightSegments
+  );
+  const numVertices = verticesWithUVs.length / 8;
+  const vertices = new Float32Array(numVertices * 6);
+  for (let i = 0; i < numVertices; ++i) {
+    const srcNdx = i * 8;
+    const dstNdx = i * 6;
+    vertices.set(verticesWithUVs.subarray(srcNdx, srcNdx + 6), dstNdx);
   }
-
-  // Helper to add a triangle with barycentric coordinates
-  function addTriangle(aIdx: number, bIdx: number, cIdx: number) {
-    const posA = tempPositions[aIdx];
-    const posB = tempPositions[bIdx];
-    const posC = tempPositions[cIdx];
-
-    // Vertex A with bary (1, 0, 0)
-    vertices.push(posA[0], posA[1], posA[2], 1, 0, 0);
-    // Vertex B with bary (0, 1, 0)
-    vertices.push(posB[0], posB[1], posB[2], 0, 1, 0);
-    // Vertex C with bary (0, 0, 1)
-    vertices.push(posC[0], posC[1], posC[2], 0, 0, 1);
-  }
-
-  // Generate triangles with barycentric coordinates
-  for (let iy = 0; iy < heightSegments; iy++) {
-    for (let ix = 0; ix < widthSegments; ix++) {
-      const a = grid[iy][ix + 1];
-      const b = grid[iy][ix];
-      const c = grid[iy + 1][ix];
-      const d = grid[iy + 1][ix + 1];
-
-      // Triangle 1: b, c, d (skip degenerate triangles at south pole)
-      if (
-        iy !== heightSegments - 1 ||
-        thetaStart + thetaLength < Math.PI - 0.0001
-      ) {
-        addTriangle(b, c, d);
-      }
-
-      // Triangle 2: b, d, a (skip degenerate triangles at north pole)
-      if (iy !== 0 || thetaStart > 0.0001) {
-        addTriangle(b, d, a);
-      }
-    }
-  }
-
   return {
-    vertices: new Float32Array(vertices),
-    vertexCount: vertices.length / 6, // 6 floats per vertex (pos + bary)
+    vertices,
+    indices: new Uint32Array(indices),
   };
 }
 
+function createVertexAndIndexBuffer(
+  device: GPUDevice,
+  { vertices, indices }: { vertices: Float32Array; indices: Uint32Array }
+): Model {
+  const vertexBuffer = createBufferWithData(
+    device,
+    vertices,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  );
+  const indexBuffer = createBufferWithData(
+    device,
+    indices,
+    GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  );
+  return {
+    vertexBuffer,
+    indexBuffer,
+    indexFormat: "uint32",
+    vertexCount: indices.length,
+  };
+}
+
+function rand(min?: number, max?: number) {
+  if (min === undefined) {
+    max = 1;
+    min = 0;
+  } else if (max === undefined) {
+    max = min;
+    min = 0;
+  }
+  return Math.random() * (max - min) + min;
+}
+
+function randColor() {
+  return [rand(), rand(), rand(), 1];
+}
+
 async function init() {
+  if (!navigator.gpu) {
+    throw new Error("WebGPU not supported on this browser.");
+  }
+
+  const adapter = await navigator.gpu.requestAdapter({
+    featureLevel: "compatibility",
+  });
+  if (!adapter) {
+    throw new Error("No appropriate GPUAdapter found.");
+  }
+  if (adapter.limits.maxStorageBuffersInVertexStage < 2) {
+    throw new Error("maxStorageBuffersInVertexStage limit is too low.");
+  }
+  const device = await adapter.requestDevice({
+    requiredLimits: {
+      maxStorageBuffersInVertexStage: 2,
+    },
+  });
+
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
-  const { device, context, canvasFormat } = await initWebGPU(canvas);
+  const context = canvas.getContext("webgpu");
+  if (!context) {
+    throw new Error("WebGPU context not found.");
+  }
 
-  const shaderModule = device.createShaderModule({ code: shaderCode });
+  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({
+    device,
+    format: presentationFormat,
+  });
+  const depthFormat = "depth24plus";
 
-  // --- Layout ---
-  const bindGroupLayout = device.createBindGroupLayout({
+  let model = createVertexAndIndexBuffer(
+    device,
+    createSphereTypedArrays(
+      sphereSettings.radius,
+      sphereSettings.widthSegments,
+      sphereSettings.heightSegments
+    )
+  );
+
+  const litModule = device.createShaderModule({
+    code: solidColorLitWGSL,
+  });
+
+  const wireframeModule = device.createShaderModule({
+    code: wireframeWGSL,
+  });
+
+  const litBindGroupLayout = device.createBindGroupLayout({
+    label: "lit bind group layout",
     entries: [
       {
         binding: 0,
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "uniform" },
+        buffer: {},
       },
     ],
   });
 
-  // --- Single Pipeline with Barycentric Wireframe ---
-  const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+  let litPipeline: GPURenderPipeline;
+  function rebuildLitPipeline() {
+    litPipeline = device.createRenderPipeline({
+      label: "lit pipeline",
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [litBindGroupLayout],
+      }),
+      vertex: {
+        module: litModule,
+        buffers: [
+          {
+            arrayStride: 6 * 4,
+            attributes: [
+              {
+                shaderLocation: 0,
+                offset: 0,
+                format: "float32x3",
+              },
+              {
+                shaderLocation: 1,
+                offset: 3 * 4,
+                format: "float32x3",
+              },
+            ],
+          },
+        ],
+      },
+      fragment: {
+        module: litModule,
+        targets: [{ format: presentationFormat }],
+      },
+      primitive: {
+        cullMode: "back",
+      },
+      depthStencil: {
+        depthWriteEnabled: true,
+        depthCompare: "less",
+        depthBias: settings.depthBias,
+        depthBiasSlopeScale: settings.depthBiasSlopeScale,
+        format: depthFormat,
+      },
+    });
+  }
+  rebuildLitPipeline();
+
+  const wireframePipeline = device.createRenderPipeline({
+    label: "wireframe pipeline",
+    layout: "auto",
     vertex: {
-      module: shaderModule,
-      entryPoint: "vs_main",
-      buffers: [
-        {
-          arrayStride: 24, // 6 floats: pos(3) + bary(3)
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: "float32x3" }, // position
-            { shaderLocation: 1, offset: 12, format: "float32x3" }, // barycentric
-          ],
-        },
-      ],
+      module: wireframeModule,
+      entryPoint: "vsIndexedU32",
     },
     fragment: {
-      module: shaderModule,
-      entryPoint: "fs_main",
-      targets: [
-        {
-          format: canvasFormat,
-          blend: {
-            color: {
-              srcFactor: "src-alpha",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-            alpha: {
-              srcFactor: "one",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-          },
-        },
-      ],
+      module: wireframeModule,
+      entryPoint: "fs",
+      targets: [{ format: presentationFormat }],
     },
-    primitive: { topology: "triangle-list", cullMode: "none" },
+    primitive: {
+      topology: "line-list",
+    },
     depthStencil: {
       depthWriteEnabled: true,
-      depthCompare: "less",
-      format: "depth24plus",
+      depthCompare: "less-equal",
+      format: depthFormat,
     },
   });
 
-  // --- Buffers ---
-  const maxVerts = 100000;
-
-  const vertexBuffer = device.createBuffer({
-    size: maxVerts * 24, // 6 floats per vertex
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-
-  // Uniform buffer: mat4x4f (64) + lineWidth (4) + fillOpacity (4) + showWireframe (4) = 76, aligned to 80
-  const uniformBuffer = device.createBuffer({
-    size: 80,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective(
-    (2 * Math.PI) / 5,
-    aspect,
-    0.1,
-    100.0
-  );
-  const depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
-    format: "depth24plus",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
-  });
-
-  // --- State & GUI ---
-  const params = {
-    radius: 1.5,
-    widthSegments: 32,
-    heightSegments: 16,
-    phiStart: 0,
-    phiLength: 2,
-    thetaStart: 0,
-    thetaLength: 1,
-    showWireframe: true,
-    lineWidth: 1.5,
-    fillOpacity: 0.3,
-  };
-
-  let vertexCount = 0;
-
-  function updateGeometry() {
-    const data = createSphereGeometry(
-      params.radius,
-      params.widthSegments,
-      params.heightSegments,
-      params.phiStart * Math.PI,
-      params.phiLength * Math.PI,
-      params.thetaStart * Math.PI,
-      params.thetaLength * Math.PI
-    );
-
-    device.queue.writeBuffer(vertexBuffer, 0, data.vertices);
-    vertexCount = data.vertexCount;
-  }
-
-  const gui = new GUI({
-    container: document.getElementById("gui-container") as HTMLElement,
-    title: "Sphere Settings",
-  });
-  gui.add(params, "radius", 0.1, 3.0).onChange(updateGeometry);
-  gui.add(params, "widthSegments", 3, 64, 1).onChange(updateGeometry);
-  gui.add(params, "heightSegments", 2, 32, 1).onChange(updateGeometry);
-  gui
-    .add(params, "phiStart", 0, 2)
-    .name("phiStart (x PI)")
-    .onChange(updateGeometry);
-  gui
-    .add(params, "phiLength", 0, 2)
-    .name("phiLength (x PI)")
-    .onChange(updateGeometry);
-  gui
-    .add(params, "thetaStart", 0, 1)
-    .name("thetaStart (x PI)")
-    .onChange(updateGeometry);
-  gui
-    .add(params, "thetaLength", 0, 1)
-    .name("thetaLength (x PI)")
-    .onChange(updateGeometry);
-  gui.add(params, "showWireframe").name("Show Wireframe");
-  gui.add(params, "lineWidth", 0.5, 5.0).name("Line Width");
-  gui.add(params, "fillOpacity", 0.0, 1.0).name("Fill Opacity");
-
-  updateGeometry();
-
-  let angle = 0;
-  function render() {
-    angle += 0.005;
-
-    const viewMatrix = mat4.lookAt([0, 0, 5], [0, 0, 0], [0, 1, 0]);
-    const modelMatrix = mat4.multiply(
-      mat4.rotationY(angle),
-      mat4.rotationX(angle * 0.5)
-    );
-    const mvpMatrix = mat4.multiply(
-      projectionMatrix,
-      mat4.multiply(viewMatrix, modelMatrix)
-    );
-
-    // Write uniforms: mvpMatrix + lineWidth + fillOpacity + showWireframe
-    device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
-    device.queue.writeBuffer(
-      uniformBuffer,
-      64,
-      new Float32Array([
-        params.lineWidth,
-        params.fillOpacity,
-        params.showWireframe ? 1.0 : 0.0,
-      ])
-    );
-
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context!.getCurrentTexture().createView();
-
-    const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: textureView,
-          clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
-          loadOp: "clear",
-          storeOp: "store",
-        },
-      ],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthClearValue: 1.0,
-        depthLoadOp: "clear",
-        depthStoreOp: "store",
+  const barycentricCoordinatesBasedWireframePipeline =
+    device.createRenderPipeline({
+      label: "barycentric coordinates based wireframe pipeline",
+      layout: "auto",
+      vertex: {
+        module: wireframeModule,
+        entryPoint: "vsIndexedU32BarycentricCoordinateBasedLines",
+      },
+      fragment: {
+        module: wireframeModule,
+        entryPoint: "fsBarycentricCoordinateBasedLines",
+        targets: [
+          {
+            format: presentationFormat,
+            blend: {
+              color: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+              },
+            },
+          },
+        ],
+      },
+      primitive: {
+        topology: "triangle-list",
+      },
+      depthStencil: {
+        depthWriteEnabled: true,
+        depthCompare: "less-equal",
+        format: depthFormat,
       },
     });
 
-    renderPass.setPipeline(pipeline);
-    renderPass.setBindGroup(0, bindGroup);
-    renderPass.setVertexBuffer(0, vertexBuffer);
-    renderPass.draw(vertexCount);
-    renderPass.end();
+  const uniformValues = new Float32Array(16 + 16 + 4);
+  const uniformBuffer = device.createBuffer({
+    size: uniformValues.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const kWorldViewProjectionMatrixOffset = 0;
+  const kWorldMatrixOffset = 16;
+  const kColorOffset = 32;
+  const worldViewProjectionMatrixValue = uniformValues.subarray(
+    kWorldViewProjectionMatrixOffset,
+    kWorldViewProjectionMatrixOffset + 16
+  );
+  const worldMatrixValue = uniformValues.subarray(
+    kWorldMatrixOffset,
+    kWorldMatrixOffset + 16
+  );
+  const colorValue = uniformValues.subarray(kColorOffset, kColorOffset + 4);
+  colorValue.set(randColor());
 
-    device.queue.submit([commandEncoder.finish()]);
-    requestAnimationFrame(render);
+  const litBindGroup = device.createBindGroup({
+    layout: litBindGroupLayout,
+    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+  });
+
+  const lineUniformValues = new Float32Array(3 + 1);
+  const lineUniformValuesAsU32 = new Uint32Array(lineUniformValues.buffer);
+  const lineUniformBuffer = device.createBuffer({
+    size: lineUniformValues.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  lineUniformValuesAsU32[0] = 6;
+
+  let wireframeBindGroup = device.createBindGroup({
+    layout: wireframePipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: uniformBuffer } },
+      { binding: 1, resource: { buffer: model.vertexBuffer } },
+      { binding: 2, resource: { buffer: model.indexBuffer } },
+      { binding: 3, resource: { buffer: lineUniformBuffer } },
+    ],
+  });
+
+  let barycentricCoordinatesBasedWireframeBindGroup = device.createBindGroup({
+    layout: barycentricCoordinatesBasedWireframePipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: uniformBuffer } },
+      { binding: 1, resource: { buffer: model.vertexBuffer } },
+      { binding: 2, resource: { buffer: model.indexBuffer } },
+      { binding: 3, resource: { buffer: lineUniformBuffer } },
+    ],
+  });
+
+  const renderPassDescriptor: GPURenderPassDescriptor = {
+    label: "sphere wireframe render pass",
+    colorAttachments: [
+      {
+        view: undefined,
+        clearValue: [0.3, 0.3, 0.3, 1],
+        loadOp: "clear",
+        storeOp: "store",
+      },
+    ],
+    depthStencilAttachment: {
+      view: undefined,
+      depthClearValue: 1.0,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+    },
+  };
+
+  const gui = new GUI({
+    container: document.getElementById("gui-container") as HTMLElement,
+    title: "Wireframe Settings",
+  });
+  gui.add(sphereSettings, "radius", 5, 40).onChange(rebuildSphere);
+  gui.add(sphereSettings, "widthSegments", 3, 64, 1).onChange(rebuildSphere);
+  gui.add(sphereSettings, "heightSegments", 2, 64, 1).onChange(rebuildSphere);
+  gui.add(settings, "barycentricCoordinatesBased").onChange(addRemoveGUI);
+  gui.add(settings, "lines");
+  gui.add(settings, "models");
+  gui.add(settings, "animate");
+
+  const guis: Array<{ destroy: () => void }> = [];
+  function addRemoveGUI() {
+    guis.forEach((g) => g.destroy());
+    guis.length = 0;
+    if (settings.barycentricCoordinatesBased) {
+      guis.push(
+        gui.add(settings, "thickness", 0.0, 10).onChange(updateThickness),
+        gui.add(settings, "alphaThreshold", 0, 1).onChange(updateThickness)
+      );
+    } else {
+      guis.push(
+        gui.add(settings, "depthBias", -3, 3, 1).onChange(rebuildLitPipeline),
+        gui
+          .add(settings, "depthBiasSlopeScale", -1, 1, 0.05)
+          .onChange(rebuildLitPipeline)
+      );
+    }
+  }
+  addRemoveGUI();
+
+  function updateThickness() {
+    lineUniformValues[1] = settings.thickness;
+    lineUniformValues[2] = settings.alphaThreshold;
+    device.queue.writeBuffer(lineUniformBuffer, 0, lineUniformValues);
+  }
+  updateThickness();
+
+  function rebuildSphere() {
+    const nextModel = createVertexAndIndexBuffer(
+      device,
+      createSphereTypedArrays(
+        sphereSettings.radius,
+        sphereSettings.widthSegments,
+        sphereSettings.heightSegments
+      )
+    );
+    model.vertexBuffer.destroy();
+    model.indexBuffer.destroy();
+    model = nextModel;
+
+    wireframeBindGroup = device.createBindGroup({
+      layout: wireframePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: uniformBuffer } },
+        { binding: 1, resource: { buffer: model.vertexBuffer } },
+        { binding: 2, resource: { buffer: model.indexBuffer } },
+        { binding: 3, resource: { buffer: lineUniformBuffer } },
+      ],
+    });
+
+    barycentricCoordinatesBasedWireframeBindGroup = device.createBindGroup({
+      layout: barycentricCoordinatesBasedWireframePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: uniformBuffer } },
+        { binding: 1, resource: { buffer: model.vertexBuffer } },
+        { binding: 2, resource: { buffer: model.indexBuffer } },
+        { binding: 3, resource: { buffer: lineUniformBuffer } },
+      ],
+    });
   }
 
+  let depthTexture: GPUTexture | undefined;
+  let time = 0.0;
+
+  function render(ts: number) {
+    if (settings.animate) {
+      time = ts * 0.001;
+    }
+
+    const canvasTexture = context.getCurrentTexture();
+    renderPassDescriptor.colorAttachments![0].view = canvasTexture.createView();
+
+    if (
+      !depthTexture ||
+      depthTexture.width !== canvasTexture.width ||
+      depthTexture.height !== canvasTexture.height
+    ) {
+      if (depthTexture) {
+        depthTexture.destroy();
+      }
+      depthTexture = device.createTexture({
+        size: [canvasTexture.width, canvasTexture.height],
+        format: depthFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
+    renderPassDescriptor.depthStencilAttachment!.view =
+      depthTexture.createView();
+
+    const fov = (60 * Math.PI) / 180;
+    const aspect = canvas.width / canvas.height;
+    const projection = mat4.perspective(fov, aspect, 0.1, 1000);
+
+    const view = mat4.lookAt([0, 0, 80], [0, 0, 0], [0, 1, 0]);
+    const viewProjection = mat4.multiply(projection, view);
+
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass(renderPassDescriptor);
+    pass.setPipeline(litPipeline);
+
+    const world = mat4.identity();
+    mat4.rotateY(world, time * 0.7, world);
+    mat4.rotateX(world, time * 0.35, world);
+
+    mat4.multiply(viewProjection, world, worldViewProjectionMatrixValue);
+    mat3.fromMat4(world, worldMatrixValue);
+
+    device.queue.writeBuffer(uniformBuffer, 0, uniformValues);
+
+    if (settings.models) {
+      pass.setVertexBuffer(0, model.vertexBuffer);
+      pass.setIndexBuffer(model.indexBuffer, model.indexFormat);
+      pass.setBindGroup(0, litBindGroup);
+      pass.drawIndexed(model.vertexCount);
+    }
+
+    if (settings.lines) {
+      const [bindGroupNdx, countMult, pipeline] =
+        settings.barycentricCoordinatesBased
+          ? [1, 1, barycentricCoordinatesBasedWireframePipeline]
+          : [0, 2, wireframePipeline];
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(
+        0,
+        bindGroupNdx === 0
+          ? wireframeBindGroup
+          : barycentricCoordinatesBasedWireframeBindGroup
+      );
+      pass.draw(model.vertexCount * countMult);
+    }
+
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+    requestAnimationFrame(render);
+  }
   requestAnimationFrame(render);
 }
 
