@@ -1021,7 +1021,7 @@
           btnDemo.classList.remove("active");
           btnCode.classList.remove("active");
           iframe.src = "about:blank";
-          const mdFile = currentPage.replace(".html", ".md");
+          const mdFile = `./src/tutorials/${currentPage.replace(".html", "")}/document.md`;
           fetch(mdFile)
             .then((res) => {
               if (!res.ok) throw new Error("Markdown not found");
