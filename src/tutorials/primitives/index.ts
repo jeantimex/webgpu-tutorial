@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -69,7 +70,10 @@ async function init(): Promise<void> {
 
   let pipeline = createPipeline(settings.topology);
 
-  const gui = new GUI({ title: "Primitives" });
+  const gui = new GUI({
+    title: "Primitives",
+    container: document.getElementById("gui-container") as HTMLElement,
+  });
   gui
     .add(settings, "topology", topologies)
     .name("Topology")
@@ -79,6 +83,7 @@ async function init(): Promise<void> {
     });
 
   function render(): void {
+    resizeCanvasToDisplaySize(canvas);
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
     const textureView: GPUTextureView = context!
       .getCurrentTexture()
@@ -107,6 +112,7 @@ async function init(): Promise<void> {
   }
 
   render();
+  window.addEventListener("resize", render);
 }
 
 init().catch((err: Error) => {

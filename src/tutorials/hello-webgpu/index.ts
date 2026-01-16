@@ -1,4 +1,5 @@
 import { initWebGPU } from "../../utils/webgpu-util";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 import vertexWGSL from "./vertex.wgsl?raw";
 import fragmentWGSL from "./fragment.wgsl?raw";
 
@@ -38,6 +39,7 @@ async function init(): Promise<void> {
   });
 
   function render(): void {
+    resizeCanvasToDisplaySize(canvas);
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
     const textureView: GPUTextureView = context!
       .getCurrentTexture()
@@ -64,6 +66,7 @@ async function init(): Promise<void> {
   }
 
   render();
+  window.addEventListener("resize", render);
 }
 
 init().catch((err: Error) => {

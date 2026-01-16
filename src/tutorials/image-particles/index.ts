@@ -1,4 +1,5 @@
 import { initWebGPU } from "../../utils/webgpu-util";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 // ==========================================
 // 1. Compute Shader
@@ -156,6 +157,7 @@ async function init() {
   particleBuffer.unmap();
 
   // --- 3. Uniforms ---
+  resizeCanvasToDisplaySize(canvas);
   const aspectRatio = canvas.width / canvas.height;
   const renderUniformBuffer = device.createBuffer({
     size: 4,
@@ -218,6 +220,14 @@ async function init() {
 
   // --- 8. Frame Loop ---
   function frame(time: number) {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      device.queue.writeBuffer(
+        renderUniformBuffer,
+        0,
+        new Float32Array([canvas.width / canvas.height])
+      );
+    }
     // Update compute params
     device.queue.writeBuffer(computeParamsBuffer, 0, new Float32Array([
       assemblySpeed, 

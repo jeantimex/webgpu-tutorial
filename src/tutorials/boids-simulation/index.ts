@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 // ==========================================
 // 1. Compute Shader (The Brains of the Boids)
@@ -101,7 +102,12 @@ struct Boid {
   vel : vec2f,
 }
 
+struct RenderUniforms {
+  values : vec4f,
+}
+
 @group(0) @binding(0) var<storage, read> boids : array<Boid>;
+@group(0) @binding(1) var<uniform> renderUniforms : RenderUniforms;
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
@@ -129,8 +135,16 @@ fn vs_main(
     pos[vIdx].x * sin(angle) + pos[vIdx].y * cos(angle)
   );
 
+  var finalPos = boid.pos + rotated;
+  let aspectRatio = renderUniforms.values.x;
+  if (aspectRatio > 1.0) {
+    finalPos = vec2f(finalPos.x / aspectRatio, finalPos.y);
+  } else {
+    finalPos = vec2f(finalPos.x, finalPos.y * aspectRatio);
+  }
+
   var out : VertexOutput;
-  out.position = vec4f(boid.pos + rotated, 0.0, 1.0);
+  out.position = vec4f(finalPos, 0.0, 1.0);
   
   // Color based on velocity
   out.color = vec4f(0.5 + boid.vel.x * 20.0, 0.5 + boid.vel.y * 20.0, 1.0, 1.0);
@@ -187,6 +201,16 @@ async function init() {
     primitive: { topology: 'triangle-list' }
   });
 
+  const renderUniformBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(
+    renderUniformBuffer,
+    0,
+    new Float32Array([canvas.width / canvas.height, 0, 0, 0])
+  );
+
   // --- 3. BindGroups (Ping-Pong) ---
   const bindGroupA = device.createBindGroup({
     layout: computePipeline.getBindGroupLayout(0),
@@ -208,11 +232,17 @@ async function init() {
 
   const renderBindGroupA = device.createBindGroup({
     layout: renderPipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: bufferA } }]
+    entries: [
+      { binding: 0, resource: { buffer: bufferA } },
+      { binding: 1, resource: { buffer: renderUniformBuffer } },
+    ]
   });
   const renderBindGroupB = device.createBindGroup({
     layout: renderPipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: bufferB } }]
+    entries: [
+      { binding: 0, resource: { buffer: bufferB } },
+      { binding: 1, resource: { buffer: renderUniformBuffer } },
+    ]
   });
 
   // --- 4. GUI ---
@@ -234,6 +264,14 @@ async function init() {
 
   // --- 5. Frame Loop ---
   function frame() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      device.queue.writeBuffer(
+        renderUniformBuffer,
+        0,
+        new Float32Array([canvas.width / canvas.height, 0, 0, 0])
+      );
+    }
     // Update Uniforms
     device.queue.writeBuffer(paramsBuffer, 0, new Float32Array([
       settings.cohesion, 

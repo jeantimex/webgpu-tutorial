@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 // ==========================================
 // 1. Compute Shader (The Filter Engine)
@@ -51,8 +52,15 @@ fn cs_main(@builtin(global_invocation_id) id : vec3u) {
 // 2. Render Shader (Draw Result to Screen)
 // ==========================================
 const renderShaderCode = `
+struct RenderUniforms {
+  imageAspect : f32,
+  canvasAspect : f32,
+  padding : vec2f,
+}
+
 @group(0) @binding(0) var mySampler : sampler;
 @group(0) @binding(1) var myTexture : texture_2d<f32>;
+@group(0) @binding(2) var<uniform> renderUniforms : RenderUniforms;
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
@@ -77,7 +85,14 @@ fn vs_main(@builtin(vertex_index) vIdx : u32) -> VertexOutput {
   );
 
   var out : VertexOutput;
-  out.position = vec4f(pos[vIdx], 0.0, 1.0);
+  var scale = vec2f(1.0, 1.0);
+  if (renderUniforms.canvasAspect > renderUniforms.imageAspect) {
+    scale.x = renderUniforms.imageAspect / renderUniforms.canvasAspect;
+  } else {
+    scale.y = renderUniforms.canvasAspect / renderUniforms.imageAspect;
+  }
+
+  out.position = vec4f(pos[vIdx] * scale, 0.0, 1.0);
   out.uv = uv[vIdx];
   return out;
 }
@@ -100,9 +115,12 @@ async function init() {
   await img.decode();
   const source = await createImageBitmap(img);
 
+  const imageAspect = source.width / source.height;
+
   // Resize canvas to match image
   canvas.width = source.width;
   canvas.height = source.height;
+  resizeCanvasToDisplaySize(canvas);
 
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
@@ -132,6 +150,16 @@ async function init() {
     size: 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+
+  const renderUniformBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(
+    renderUniformBuffer,
+    0,
+    new Float32Array([imageAspect, canvas.width / canvas.height, 0, 0])
+  );
 
   // --- 4. Pipelines ---
   const computeModule = device.createShaderModule({ code: computeShaderCode });
@@ -164,7 +192,8 @@ async function init() {
     layout: renderPipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: sampler },
-      { binding: 1, resource: outputTexture.createView() }
+      { binding: 1, resource: outputTexture.createView() },
+      { binding: 2, resource: { buffer: renderUniformBuffer } }
     ]
   });
 
@@ -182,6 +211,14 @@ async function init() {
 
   // --- 7. Frame Loop ---
   function frame() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      device.queue.writeBuffer(
+        renderUniformBuffer,
+        0,
+        new Float32Array([imageAspect, canvas.width / canvas.height, 0, 0])
+      );
+    }
     const commandEncoder = device.createCommandEncoder();
 
     // A. Compute Pass (Process the image)
