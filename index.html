@@ -23,6 +23,7 @@
     <style>
       :root {
         color-scheme: light dark;
+        --code-line-height: 1.5;
 
         /* Sidebar Colors */
         --sidebar-bg: light-dark(#fff, #242424);
@@ -315,10 +316,9 @@
 
       #demo-code pre {
         margin: 0;
-        background-color: var(--md-pre-bg);
-        padding: 1em;
-        border-radius: 8px;
-        overflow-x: auto;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
       }
 
       #demo-code code {
@@ -358,10 +358,9 @@
       }
 
       #markdown-content pre {
-        background-color: var(--md-pre-bg);
-        padding: 1em;
-        border-radius: 8px;
-        overflow-x: auto;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
         transition: background-color 0.3s;
         margin: 0; /* Remove margin from pre inside container */
       }
@@ -383,6 +382,53 @@
         margin: 0;
         background-color: var(--md-pre-bg);
         border-radius: 8px;
+      }
+
+      .code-block {
+        display: flex;
+        align-items: stretch;
+        overflow: auto;
+        border-radius: 8px;
+      }
+
+      .code-lines {
+        flex: 0 0 auto;
+        padding: 1em 0.75em 1em 1em;
+        border-right: 1px solid var(--sidebar-border);
+        color: var(--link-color);
+        font-family: monospace;
+        font-size: inherit;
+        line-height: var(--code-line-height);
+        text-align: right;
+        user-select: none;
+        min-width: 3.5em;
+        position: sticky;
+        left: 0;
+        background-color: var(--md-pre-bg);
+        z-index: 1;
+      }
+
+      .code-lines span {
+        display: block;
+        line-height: var(--code-line-height);
+      }
+
+      .code-content {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .code-content pre {
+        margin: 0;
+        padding: 1em 1em 1em 0.75em;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
+      }
+
+      .code-content code {
+        display: block;
+        line-height: var(--code-line-height);
       }
 
       .copy-btn {
@@ -748,36 +794,51 @@
         });
 
       // --- Helper: Copy Button ---
-      function addCopyButtons(container) {
+      function wrapCodeBlocks(container) {
         const preElements = container.querySelectorAll("pre");
         preElements.forEach((pre) => {
-          // Check if button already exists (to prevent duplicates on re-render)
-          if (pre.parentNode.classList.contains("code-container")) return;
+          if (pre.closest(".code-block")) return;
 
-          // Wrap pre in container
-          const container = document.createElement("div");
-          container.className = "code-container";
-          pre.parentNode.insertBefore(container, pre);
-          container.appendChild(pre);
+          const codeContainer = document.createElement("div");
+          codeContainer.className = "code-container";
+          pre.parentNode.insertBefore(codeContainer, pre);
 
-          // Create button
+          const codeBlock = document.createElement("div");
+          codeBlock.className = "code-block";
+          const lineNumbers = document.createElement("div");
+          lineNumbers.className = "code-lines";
+          const codeContent = document.createElement("div");
+          codeContent.className = "code-content";
+
+          codeContainer.appendChild(codeBlock);
+          codeBlock.appendChild(lineNumbers);
+          codeBlock.appendChild(codeContent);
+          codeContent.appendChild(pre);
+        });
+      }
+
+      function addCopyButtons(container) {
+        const codeContainers = container.querySelectorAll(".code-container");
+        codeContainers.forEach((codeContainer) => {
+          if (codeContainer.querySelector(".copy-btn")) return;
+
+          const pre = codeContainer.querySelector("pre");
+          if (!pre) return;
+
           const btn = document.createElement("button");
           btn.className = "copy-btn";
           btn.setAttribute("aria-label", "Copy code");
 
-          // Icon
           const icon = document.createElement("span");
           icon.className = "material-symbols-outlined";
           icon.textContent = "content_copy";
           btn.appendChild(icon);
 
-          // Event Listener
           btn.addEventListener("click", async () => {
             try {
               const code = pre.querySelector("code").innerText;
               await navigator.clipboard.writeText(code);
 
-              // Feedback
               icon.textContent = "check";
               setTimeout(() => {
                 icon.textContent = "content_copy";
@@ -787,7 +848,29 @@
             }
           });
 
-          container.appendChild(btn);
+          codeContainer.appendChild(btn);
+        });
+      }
+
+      function addLineNumbers(container) {
+        const codeBlocks = container.querySelectorAll(".code-block");
+        codeBlocks.forEach((codeBlock) => {
+          const lineNumbers = codeBlock.querySelector(".code-lines");
+          const code = codeBlock.querySelector("pre code");
+          if (!lineNumbers || !code) return;
+          if (code.dataset.lineNumbers === "true") return;
+
+          const text = code.textContent || "";
+          const lineCount = text.replace(/\n$/, "").split("\n").length;
+          const frag = document.createDocumentFragment();
+          for (let i = 1; i <= lineCount; i += 1) {
+            const line = document.createElement("span");
+            line.textContent = String(i);
+            frag.appendChild(line);
+          }
+          lineNumbers.innerHTML = "";
+          lineNumbers.appendChild(frag);
+          code.dataset.lineNumbers = "true";
         });
       }
 
@@ -839,8 +922,11 @@
           }
           demoCodeBlock.textContent = sourceText;
           demoCodeBlock.removeAttribute("data-highlighted");
+          demoCodeBlock.removeAttribute("data-line-numbers");
           hljs.highlightElement(demoCodeBlock);
+          wrapCodeBlocks(demoCode);
           addCopyButtons(demoCode);
+          addLineNumbers(demoCode);
         } catch (err) {
           demoCodeBlock.textContent = `Failed to load ${tsPath}`;
         }
@@ -946,7 +1032,9 @@
               markdownDiv.querySelectorAll("pre code").forEach((block) => {
                 hljs.highlightElement(block);
               });
+              wrapCodeBlocks(markdownDiv);
               addCopyButtons(markdownDiv); // Inject copy buttons after render
+              addLineNumbers(markdownDiv);
             })
             .catch((err) => {
               markdownDiv.innerHTML = `<h1>Error</h1><p>${err.message}</p>`;
