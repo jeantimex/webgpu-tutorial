@@ -1,0 +1,1 @@
+function o(t){const i=window.devicePixelRatio||1,e=Math.max(1,Math.floor(t.clientWidth*i)),h=Math.max(1,Math.floor(t.clientHeight*i));return t.width!==e||t.height!==h?(t.width=e,t.height=h,!0):!1}export{o as r};

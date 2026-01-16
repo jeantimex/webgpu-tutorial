@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4 } from "wgpu-matrix";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 const shaderCode = `
 struct Uniforms {
@@ -72,15 +73,27 @@ async function init() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
-  const viewMatrix = mat4.lookAt([2, 2, 2], [0, 0, 0], [0, 1, 0]);
-  const modelMatrix = mat4.identity();
-  const mvpMatrix = mat4.multiply(projectionMatrix, mat4.multiply(viewMatrix, modelMatrix));
-  device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
+  function updateProjection() {
+    const aspect = canvas.width / canvas.height;
+    const projectionMatrix = mat4.perspective(
+      (2 * Math.PI) / 5,
+      aspect,
+      0.1,
+      100.0
+    );
+    const viewMatrix = mat4.lookAt([2, 2, 2], [0, 0, 0], [0, 1, 0]);
+    const modelMatrix = mat4.identity();
+    const mvpMatrix = mat4.multiply(
+      projectionMatrix,
+      mat4.multiply(viewMatrix, modelMatrix)
+    );
+    device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
+  }
 
   // 3. Create Depth Texture
-  const depthTexture = device.createTexture({
+  resizeCanvasToDisplaySize(canvas);
+  updateProjection();
+  let depthTexture = device.createTexture({
     label: "Depth Texture",
     size: [canvas.width, canvas.height],
     format: "depth24plus",
@@ -117,6 +130,17 @@ async function init() {
   });
 
   function render() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      updateProjection();
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
+        label: "Depth Texture",
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
 
@@ -146,6 +170,7 @@ async function init() {
   }
 
   render();
+  window.addEventListener("resize", render);
 }
 
 init().catch(console.error);

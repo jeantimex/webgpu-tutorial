@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4 } from "wgpu-matrix";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 const shaderCode = `
 struct Uniforms {
@@ -117,11 +118,15 @@ async function init() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
+  function getProjectionMatrix() {
+    const aspect = canvas.width / canvas.height;
+    return mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
+  }
   
   // Rotating camera view
   let angle = 0;
+  let projectionMatrix = getProjectionMatrix();
+
   function updateMatrix() {
     const viewMatrix = mat4.lookAt(
       [Math.sin(angle) * 3, 2, Math.cos(angle) * 3], 
@@ -133,7 +138,9 @@ async function init() {
     device.queue.writeBuffer(uniformBuffer, 0, mvpMatrix as Float32Array);
   }
 
-  const depthTexture = device.createTexture({
+  resizeCanvasToDisplaySize(canvas);
+  projectionMatrix = getProjectionMatrix();
+  let depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -175,6 +182,16 @@ async function init() {
   });
 
   function render() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      projectionMatrix = getProjectionMatrix();
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
     angle += 0.01;
     updateMatrix();
 

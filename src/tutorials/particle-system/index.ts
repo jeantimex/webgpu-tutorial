@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 // ==========================================
 // 1. Compute Shader
@@ -102,6 +103,7 @@ async function init() {
   // --- Pipelines & Constant Resources (created once) ---
 
   // 1. Aspect Ratio Uniform
+  resizeCanvasToDisplaySize(canvas);
   const aspectRatio = canvas.width / canvas.height;
   const uniformBuffer = device.createBuffer({
     label: "Uniform Buffer",
@@ -221,6 +223,14 @@ async function init() {
 
   // --- Frame Loop ---
   function frame() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      device.queue.writeBuffer(
+        uniformBuffer,
+        0,
+        new Float32Array([canvas.width / canvas.height])
+      );
+    }
     const commandEncoder = device.createCommandEncoder();
 
     // A. Compute Pass

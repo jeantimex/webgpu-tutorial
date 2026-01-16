@@ -1,6 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat3, mat4, vec3 } from "wgpu-matrix";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 const shaderCode = `
 struct Uniforms {
@@ -114,9 +115,14 @@ async function init() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
-  const depthTexture = device.createTexture({
+  function getProjectionMatrix() {
+    const aspect = canvas.width / canvas.height;
+    return mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
+  }
+
+  resizeCanvasToDisplaySize(canvas);
+  let projectionMatrix = getProjectionMatrix();
+  let depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -173,6 +179,16 @@ async function init() {
   const normalMatrixData = new Float32Array(12);
 
   function render() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      projectionMatrix = getProjectionMatrix();
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
     if (settings.animate) {
       angle += 0.01;
     }

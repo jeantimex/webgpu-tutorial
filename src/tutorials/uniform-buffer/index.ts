@@ -1,4 +1,5 @@
 import { initWebGPU } from "../../utils/webgpu-util";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -101,6 +102,7 @@ async function init() {
 
   // 6. Render
   function render() {
+    resizeCanvasToDisplaySize(canvas);
     const commandEncoder = device.createCommandEncoder();
     const textureView = context!.getCurrentTexture().createView();
 
@@ -132,6 +134,7 @@ async function init() {
   }
 
   render();
+  window.addEventListener("resize", render);
 }
 
 init().catch((err) => {
