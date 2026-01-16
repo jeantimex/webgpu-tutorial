@@ -676,6 +676,46 @@
       let tutorials = [];
       let currentCodeFile = "";
 
+      function getSlugFromFilename(filename) {
+        const match = filename.match(/src\/tutorials\/([^/]+)\/index\.html$/);
+        return match ? match[1] : "";
+      }
+
+      function getTutorialBySlug(slug) {
+        return tutorials.find(
+          (tutorial) => getSlugFromFilename(tutorial.filename) === slug
+        );
+      }
+
+      function applyUrlState() {
+        const params = new URLSearchParams(window.location.search);
+        const slug = params.get("title");
+        const section = params.get("section");
+
+        if (slug) {
+          const tutorial = getTutorialBySlug(slug);
+          if (tutorial) {
+            currentPage = tutorial.filename;
+          }
+        }
+
+        if (section === "demo" || section === "code") {
+          currentMode = section;
+        } else if (section === "tutorial") {
+          currentMode = "tutorial";
+        }
+      }
+
+      function updateUrlState() {
+        if (!currentPage) return;
+        const slug = getSlugFromFilename(currentPage);
+        const params = new URLSearchParams();
+        if (slug) params.set("title", slug);
+        params.set("section", currentMode);
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({}, "", newUrl);
+      }
+
       async function initTutorials() {
         try {
           const res = await fetch("tutorials.json");
@@ -705,6 +745,7 @@
 
         if (tutorials.length > 0) {
           currentPage = tutorials[0].filename;
+          applyUrlState();
           loadContent();
         }
       }
@@ -1044,6 +1085,8 @@
               markdownDiv.innerHTML = `<h1>Error</h1><p>${err.message}</p>`;
             });
         }
+
+        updateUrlState();
       }
 
       btnDemo.addEventListener("click", () => {
