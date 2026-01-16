@@ -300,6 +300,22 @@
         z-index: 12;
       }
 
+      #header-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #markdown-content h1:first-child {
+        display: none;
+      }
+
+      #markdown-content p:first-of-type {
+        margin-top: 0;
+      }
+
       #demo-tabs {
         display: none;
         align-items: center;
@@ -618,12 +634,11 @@
       <ul id="tutorial-list"></ul>
       <div id="sidebar-footer">
         <a
-          href="https://github.com/jeantimex"
+          href="https://github.com/jeantimex/webgpu-tutorial"
           target="_blank"
           style="
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 8px;
           "
         >
@@ -647,6 +662,7 @@
         <button id="btn-menu" aria-label="Open Sidebar">
           <span class="material-symbols-outlined">menu</span>
         </button>
+        <h1 id="header-title"></h1>
         <div id="demo-tabs"></div>
         <div id="controls">
           <div class="segmented-control mode-tutorial">
@@ -689,6 +705,7 @@
       const tutorialList = document.getElementById("tutorial-list");
       const demoContainer = document.getElementById("demo-container");
       const demoTabs = document.getElementById("demo-tabs");
+      const headerTitle = document.getElementById("header-title");
       const iframe = document.getElementById("content-frame");
       const demoCode = document.getElementById("demo-code");
       const demoCodeBlock = demoCode.querySelector("code");
@@ -1038,11 +1055,14 @@
         if (currentMode !== "demo" && currentMode !== "code") {
           demoContainer.style.display = "none";
           demoTabs.style.display = "none";
+          headerTitle.style.display = "block";
           return;
         }
 
         demoContainer.style.display = "flex";
-        demoTabs.style.display = currentMode === "code" ? "flex" : "none";
+        const isCode = currentMode === "code";
+        demoTabs.style.display = isCode ? "flex" : "none";
+        headerTitle.style.display = isCode ? "none" : "block";
         if (currentMode === "code") {
           renderCodeTabs();
         }
@@ -1061,6 +1081,18 @@
       }
 
       function loadContent() {
+        const currentTutorial = getCurrentTutorial();
+        if (currentTutorial) {
+          const index = tutorials.findIndex(
+            (tutorial) => tutorial.filename === currentTutorial.filename
+          );
+          const label =
+            index >= 0 ? `${String(index + 1).padStart(2, "0")}. ` : "";
+          headerTitle.textContent = `${label}${currentTutorial.title}`;
+        } else {
+          headerTitle.textContent = "WebGPU Tutorials";
+        }
+
         links.forEach((link) => {
           if (link.getAttribute("href") === currentPage) {
             link.classList.add("active");
@@ -1093,6 +1125,8 @@
           segControl.classList.remove("mode-demo", "mode-code");
 
           demoContainer.style.display = "none";
+          demoTabs.style.display = "none";
+          headerTitle.style.display = "block";
           markdownDiv.style.display = "block";
           btnTutorial.classList.add("active");
           btnDemo.classList.remove("active");
