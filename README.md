@@ -42,27 +42,3 @@ Learn WebGPU via practical, step-by-step code samples and tutorials.
 | 34 | [Shadow Mapping](src/tutorials/shadow-mapping/document.md) | Learn how to implement basic shadow mapping using a depth pass and comparison samplers. |
 | 35 | [Rock Geometry](src/tutorials/rock-geometry/document.md) | Generate an organic rock shape using randomized vertex radii and per-face colors. |
 | 36 | [Wireframe](src/tutorials/wireframe/document.md) | Render models with solid shading and wireframe overlays using separate pipelines. |
-
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v20.19.0 or later recommended)
-- A browser with WebGPU support (e.g., Chrome, Edge, or Firefox Nightly)
-
-### Installation
-
-```bash
-npm install
-```
-
-### Development
-
-Start the Vite development server:
-
-```bash
-npm run dev
-```
-
-Then open your browser and navigate to the provided local URL (usually `http://localhost:5173`).
