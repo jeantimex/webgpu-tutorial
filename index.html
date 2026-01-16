@@ -113,7 +113,7 @@
         transition:
           background-color 0.3s,
           border-color 0.3s;
-        min-height: 60px; /* Prevent header collapse issues */
+        min-height: 66px; /* Prevent header collapse issues */
       }
 
       #sidebar h1 {
@@ -263,6 +263,69 @@
         border: none;
       }
 
+      #demo-container {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+      }
+
+      #demo-tabs {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        padding: 0 1rem;
+        min-height: 66px;
+        border-bottom: 1px solid var(--sidebar-border);
+        background-color: var(--header-bg);
+      }
+
+      .tab-btn {
+        border: none;
+        background: transparent;
+        color: var(--link-color);
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border-bottom: 2px solid transparent;
+      }
+
+      .tab-btn.active {
+        color: var(--link-active-color);
+        border-bottom-color: var(--link-active-border);
+      }
+
+      #demo-code {
+        display: none;
+        flex: 1;
+        overflow: auto;
+        padding: 1.5rem;
+        background-color: var(--md-bg);
+        color: var(--md-color);
+        width: 100%;
+      }
+
+      #demo-container iframe {
+        flex: 1;
+        height: auto;
+      }
+
+      #demo-code pre {
+        margin: 0;
+        background-color: var(--md-pre-bg);
+        padding: 1em;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+
+      #demo-code code {
+        background-color: transparent;
+        padding: 0;
+      }
+
       #markdown-content {
         display: none;
         width: 100%;
@@ -317,7 +380,7 @@
       /* Code Block Container for Copy Button */
       .code-container {
         position: relative;
-        margin: 1.5em 0;
+        margin: 0;
         background-color: var(--md-pre-bg);
         border-radius: 8px;
       }
@@ -368,7 +431,7 @@
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         transition: background-color 0.3s;
         position: relative;
-        min-width: 180px;
+        min-width: 260px;
       }
 
       .segmented-btn {
@@ -396,7 +459,7 @@
         top: 4px;
         left: 4px;
         bottom: 4px;
-        width: calc(50% - 4px);
+        width: calc(33.333% - 4px);
         background-color: var(--control-btn-active-bg);
         border-radius: 20px;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -410,6 +473,9 @@
       }
       .mode-demo .selection-slider {
         transform: translateX(100%);
+      }
+      .mode-code .selection-slider {
+        transform: translateX(200%);
       }
 
       /* Circular Theme Button */
@@ -502,6 +568,7 @@
             Tutorial
           </button>
           <button class="segmented-btn" id="btn-demo">Demo</button>
+          <button class="segmented-btn" id="btn-code">Code</button>
         </div>
         <button class="theme-btn" id="btn-theme" aria-label="Toggle Theme">
           <span class="material-symbols-outlined" id="theme-icon"
@@ -527,7 +594,16 @@
         </a>
       </div>
 
-      <iframe id="content-frame" src="about:blank"></iframe>
+      <div id="demo-container">
+        <div id="demo-tabs">
+          <button class="tab-btn" data-tab="code">index.ts</button>
+          <button class="tab-btn" data-tab="webgpu-util">webgpu-util.ts</button>
+        </div>
+        <iframe id="content-frame" src="about:blank"></iframe>
+        <div id="demo-code">
+          <pre><code class="language-ts"></code></pre>
+        </div>
+      </div>
       <div id="markdown-content"></div>
     </div>
 
@@ -536,10 +612,15 @@
 
       const body = document.body;
       const tutorialList = document.getElementById("tutorial-list");
+      const demoContainer = document.getElementById("demo-container");
+      const demoTabs = document.getElementById("demo-tabs");
       const iframe = document.getElementById("content-frame");
+      const demoCode = document.getElementById("demo-code");
+      const demoCodeBlock = demoCode.querySelector("code");
       const markdownDiv = document.getElementById("markdown-content");
       const btnTutorial = document.getElementById("btn-tutorial");
       const btnDemo = document.getElementById("btn-demo");
+      const btnCode = document.getElementById("btn-code");
       const segControl = document.querySelector(".segmented-control");
       const btnTheme = document.getElementById("btn-theme");
       const themeIcon = document.getElementById("theme-icon");
@@ -550,6 +631,7 @@
       let currentPage = "";
       let links = [];
       let tutorials = [];
+      let currentDemoTab = "code";
 
       async function initTutorials() {
         try {
@@ -669,8 +751,8 @@
         });
 
       // --- Helper: Copy Button ---
-      function addCopyButtons() {
-        const preElements = markdownDiv.querySelectorAll("pre");
+      function addCopyButtons(container) {
+        const preElements = container.querySelectorAll("pre");
         preElements.forEach((pre) => {
           // Check if button already exists (to prevent duplicates on re-render)
           if (pre.parentNode.classList.contains("code-container")) return;
@@ -713,10 +795,83 @@
       }
 
       // --- Navigation ---
+      function getCurrentCodePath() {
+        if (currentDemoTab === "webgpu-util") {
+          return "./src/utils/webgpu-util.ts?raw";
+        }
+        if (!currentPage) return "";
+        const base = currentPage.replace(".html", "");
+        return `./src/tutorials/${base}/index.ts?raw`;
+      }
+
+      async function loadDemoCode() {
+        const tsPath = getCurrentCodePath();
+        if (!tsPath) return;
+        try {
+          const res = await fetch(tsPath);
+          if (!res.ok) throw new Error("Source not found");
+          const text = await res.text();
+          const cleaned = text.replace(
+            /^\s*\/\/# sourceMappingURL=.*$/gm,
+            ""
+          );
+          let sourceText = cleaned;
+          const rawMatch = cleaned.match(
+            /^export default\s+([`'"])([\s\S]*)\1\s*;?\s*$/
+          );
+          if (rawMatch) {
+            const literal = `${rawMatch[1]}${rawMatch[2]}${rawMatch[1]}`;
+            try {
+              sourceText = Function(
+                `"use strict"; return ${literal};`
+              )();
+            } catch (err) {}
+          }
+          demoCodeBlock.textContent = sourceText;
+          demoCodeBlock.removeAttribute("data-highlighted");
+          hljs.highlightElement(demoCodeBlock);
+          addCopyButtons(demoCode);
+        } catch (err) {
+          demoCodeBlock.textContent = `Failed to load ${tsPath}`;
+        }
+      }
+
+      function updateDemoView() {
+        if (currentMode !== "demo" && currentMode !== "code") {
+          demoContainer.style.display = "none";
+          return;
+        }
+
+        demoContainer.style.display = "flex";
+        demoTabs.style.display = currentMode === "code" ? "flex" : "none";
+        if (currentMode === "code") {
+          if (!["code", "webgpu-util"].includes(currentDemoTab)) {
+            currentDemoTab = "code";
+          }
+        }
+        const tabButtons = demoTabs.querySelectorAll(".tab-btn");
+        tabButtons.forEach((btn) => {
+          const tab = btn.getAttribute("data-tab");
+          btn.classList.toggle("active", tab === currentDemoTab);
+        });
+
+        if (currentMode === "demo") {
+          iframe.style.display = "block";
+          demoCode.style.display = "none";
+          if (!iframe.src.endsWith(currentPage)) {
+            iframe.src = currentPage;
+          }
+        } else {
+          iframe.style.display = "none";
+          demoCode.style.display = "block";
+          loadDemoCode();
+        }
+      }
+
       function loadContent() {
-      links.forEach((link) => {
-        if (link.getAttribute("href") === currentPage) {
-          link.classList.add("active");
+        links.forEach((link) => {
+          if (link.getAttribute("href") === currentPage) {
+            link.classList.add("active");
           } else {
             link.classList.remove("active");
           }
@@ -725,26 +880,31 @@
         // Update Slider Animation via parent class
         if (currentMode === "demo") {
           segControl.classList.add("mode-demo");
-          segControl.classList.remove("mode-tutorial");
+          segControl.classList.remove("mode-tutorial", "mode-code");
 
-          iframe.style.display = "block";
           markdownDiv.style.display = "none";
           btnDemo.classList.add("active");
           btnTutorial.classList.remove("active");
-          
-          // Use property instead of attribute for more reliable comparison
-          // and ensure the iframe actually points to the current page
-          if (!iframe.src.endsWith(currentPage)) {
-            iframe.src = currentPage;
-          }
+          btnCode.classList.remove("active");
+          updateDemoView();
+        } else if (currentMode === "code") {
+          segControl.classList.add("mode-code");
+          segControl.classList.remove("mode-demo", "mode-tutorial");
+
+          markdownDiv.style.display = "none";
+          btnCode.classList.add("active");
+          btnTutorial.classList.remove("active");
+          btnDemo.classList.remove("active");
+          updateDemoView();
         } else {
           segControl.classList.add("mode-tutorial");
-          segControl.classList.remove("mode-demo");
+          segControl.classList.remove("mode-demo", "mode-code");
 
-          iframe.style.display = "none";
+          demoContainer.style.display = "none";
           markdownDiv.style.display = "block";
           btnTutorial.classList.add("active");
           btnDemo.classList.remove("active");
+          btnCode.classList.remove("active");
           iframe.src = "about:blank";
           const mdFile = currentPage.replace(".html", ".md");
           fetch(mdFile)
@@ -757,7 +917,7 @@
               markdownDiv.querySelectorAll("pre code").forEach((block) => {
                 hljs.highlightElement(block);
               });
-              addCopyButtons(); // Inject copy buttons after render
+              addCopyButtons(markdownDiv); // Inject copy buttons after render
             })
             .catch((err) => {
               markdownDiv.innerHTML = `<h1>Error</h1><p>${err.message}</p>`;
@@ -776,6 +936,23 @@
         if (currentMode !== "tutorial") {
           currentMode = "tutorial";
           loadContent();
+        }
+      });
+
+      btnCode.addEventListener("click", () => {
+        if (currentMode !== "code") {
+          currentMode = "code";
+          loadContent();
+        }
+      });
+
+      demoTabs.addEventListener("click", (e) => {
+        const tabBtn = e.target.closest(".tab-btn");
+        if (!tabBtn) return;
+        const tab = tabBtn.getAttribute("data-tab");
+        if (tab && tab !== currentDemoTab) {
+          currentDemoTab = tab;
+          updateDemoView();
         }
       });
 
