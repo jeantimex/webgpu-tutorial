@@ -1,5 +1,6 @@
 import { mat3, mat4 } from "wgpu-matrix";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 const solidColorLitWGSL = `
 struct Uniforms {
@@ -279,18 +280,6 @@ function rand(min?: number, max?: number) {
 
 function randColor() {
   return [rand(), rand(), rand(), 1];
-}
-
-function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement) {
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
-  const height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-    return true;
-  }
-  return false;
 }
 
 async function init() {
