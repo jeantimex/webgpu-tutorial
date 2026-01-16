@@ -295,7 +295,7 @@ async function init() {
       colorAttachments: [{ 
         view: context!.getCurrentTexture().createView(), 
         loadOp: 'clear', storeOp: 'store', 
-        clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1 } 
+        clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1.0 } 
       }]
     });
     renderPass.setPipeline(renderPipeline);
