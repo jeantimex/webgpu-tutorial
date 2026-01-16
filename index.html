@@ -282,6 +282,14 @@
         background-color: var(--header-bg);
       }
 
+      #demo-header {
+        display: none;
+        align-items: center;
+        min-height: 66px;
+        border-bottom: 1px solid var(--sidebar-border);
+        background-color: var(--header-bg);
+      }
+
       .tab-btn {
         border: none;
         background: transparent;
@@ -460,11 +468,12 @@
       /* Float Box */
       #controls {
         position: absolute;
-        top: 1rem;
+        top: 0;
         right: 1rem;
         display: flex;
         align-items: center;
         gap: 12px; /* Spacing between groups */
+        height: 66px;
         z-index: 10;
       }
 
@@ -641,6 +650,7 @@
       </div>
 
       <div id="demo-container">
+        <div id="demo-header"></div>
         <div id="demo-tabs"></div>
         <iframe id="content-frame" src="about:blank"></iframe>
         <div id="demo-code">
@@ -656,6 +666,7 @@
       const body = document.body;
       const tutorialList = document.getElementById("tutorial-list");
       const demoContainer = document.getElementById("demo-container");
+      const demoHeader = document.getElementById("demo-header");
       const demoTabs = document.getElementById("demo-tabs");
       const iframe = document.getElementById("content-frame");
       const demoCode = document.getElementById("demo-code");
@@ -1005,10 +1016,12 @@
       function updateDemoView() {
         if (currentMode !== "demo" && currentMode !== "code") {
           demoContainer.style.display = "none";
+          demoHeader.style.display = "none";
           return;
         }
 
         demoContainer.style.display = "flex";
+        demoHeader.style.display = currentMode === "demo" ? "flex" : "none";
         demoTabs.style.display = currentMode === "code" ? "flex" : "none";
         if (currentMode === "code") {
           renderCodeTabs();
