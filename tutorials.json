@@ -1,0 +1,168 @@
+[
+  {
+    "title": "Hello WebGPU",
+    "filename": "src/tutorials/hello-webgpu/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
+  },
+  {
+    "title": "Primitives",
+    "filename": "src/tutorials/primitives/index.html"
+  },
+  {
+    "title": "Vertex Buffer",
+    "filename": "src/tutorials/vertex-buffer/index.html"
+  },
+  {
+    "title": "Shader Structs",
+    "filename": "src/tutorials/shader-structs/index.html"
+  },
+  {
+    "title": "Uniform Buffer",
+    "filename": "src/tutorials/uniform-buffer/index.html"
+  },
+  {
+    "title": "Index Buffer",
+    "filename": "src/tutorials/index-buffer/index.html"
+  },
+  {
+    "title": "Single Transformation",
+    "filename": "src/tutorials/single-transformation/index.html"
+  },
+  {
+    "title": "Instancing",
+    "filename": "src/tutorials/instancing/index.html"
+  },
+  {
+    "title": "Instanced Vertex Buffer",
+    "filename": "src/tutorials/instanced-vertex-buffer/index.html"
+  },
+  {
+    "title": "Switching Pipelines",
+    "filename": "src/tutorials/switching-pipelines/index.html"
+  },
+  {
+    "title": "Switching Vertex Buffers",
+    "filename": "src/tutorials/switching-vertex-buffers/index.html"
+  },
+  {
+    "title": "Simple Compute Shader",
+    "filename": "src/tutorials/simple-compute/index.html"
+  },
+  {
+    "title": "Particle System",
+    "filename": "src/tutorials/particle-system/index.html"
+  },
+  {
+    "title": "Image Particles",
+    "filename": "src/tutorials/image-particles/index.html"
+  },
+  {
+    "title": "Image Processing",
+    "filename": "src/tutorials/image-processing/index.html"
+  },
+  {
+    "title": "Game of Life",
+    "filename": "src/tutorials/game-of-life/index.html"
+  },
+  {
+    "title": "Boids Simulation",
+    "filename": "src/tutorials/boids-simulation/index.html"
+  },
+  {
+    "title": "Hello Cube (3D & MVP)",
+    "filename": "src/tutorials/hello-cube/index.html"
+  },
+  {
+    "title": "Indexed Cube",
+    "filename": "src/tutorials/indexed-cube/index.html"
+  },
+  {
+    "title": "Cube Face Colors",
+    "filename": "src/tutorials/cube-face-colors/index.html"
+  },
+  {
+    "title": "Textured Cube",
+    "filename": "src/tutorials/textured-cube/index.html"
+  },
+  {
+    "title": "Texture Atlas",
+    "filename": "src/tutorials/texture-atlas/index.html"
+  },
+  {
+    "title": "Directional Light",
+    "filename": "src/tutorials/directional-light/index.html"
+  },
+  {
+    "title": "Ambient Light",
+    "filename": "src/tutorials/ambient-light/index.html"
+  },
+  {
+    "title": "Point Light",
+    "filename": "src/tutorials/point-light/index.html"
+  },
+  {
+    "title": "Sphere Geometry",
+    "filename": "src/tutorials/sphere-geometry/index.html"
+  },
+  {
+    "title": "Box Geometry",
+    "filename": "src/tutorials/box-geometry/index.html"
+  },
+  {
+    "title": "Cylinder Geometry",
+    "filename": "src/tutorials/cylinder-geometry/index.html"
+  },
+  {
+    "title": "Torus Geometry",
+    "filename": "src/tutorials/torus-geometry/index.html"
+  },
+  {
+    "title": "Torus Knot Geometry",
+    "filename": "src/tutorials/torus-knot-geometry/index.html"
+  },
+  {
+    "title": "Cone Geometry",
+    "filename": "src/tutorials/cone-geometry/index.html"
+  },
+  {
+    "title": "Plane Geometry",
+    "filename": "src/tutorials/plane-geometry/index.html"
+  },
+  {
+    "title": "Jewel Geometry",
+    "filename": "src/tutorials/jewel-geometry/index.html"
+  },
+  {
+    "title": "Shadow Mapping",
+    "filename": "src/tutorials/shadow-mapping/index.html"
+  },
+  {
+    "title": "Rock Geometry",
+    "filename": "src/tutorials/rock-geometry/index.html"
+  },
+  {
+    "title": "Wireframe",
+    "filename": "src/tutorials/wireframe/index.html"
+  },
+  {
+    "title": "Multiple Vertex Buffers",
+    "filename": "src/tutorials/multiple-vertex-buffers/index.html"
+  },
+  {
+    "title": "Interleaved Vertex Buffers",
+    "filename": "src/tutorials/interleaved-vertex-buffers/index.html"
+  },
+  {
+    "title": "Dynamic Uniform Buffer",
+    "filename": "src/tutorials/dynamic-uniform-buffer/index.html"
+  },
+  {
+    "title": "Combined Transformations",
+    "filename": "src/tutorials/combined-transformations/index.html"
+  }
+]
