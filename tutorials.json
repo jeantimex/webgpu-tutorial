@@ -30,8 +30,24 @@
     "filename": "src/tutorials/index-buffer/index.html"
   },
   {
+    "title": "Multiple Vertex Buffers",
+    "filename": "src/tutorials/multiple-vertex-buffers/index.html"
+  },
+  {
+    "title": "Interleaved Vertex Buffers",
+    "filename": "src/tutorials/interleaved-vertex-buffers/index.html"
+  },
+  {
+    "title": "Dynamic Uniform Buffer",
+    "filename": "src/tutorials/dynamic-uniform-buffer/index.html"
+  },
+  {
     "title": "Single Transformation",
     "filename": "src/tutorials/single-transformation/index.html"
+  },
+  {
+    "title": "Combined Transformations",
+    "filename": "src/tutorials/combined-transformations/index.html"
   },
   {
     "title": "Instancing",
@@ -148,21 +164,5 @@
   {
     "title": "Wireframe",
     "filename": "src/tutorials/wireframe/index.html"
-  },
-  {
-    "title": "Multiple Vertex Buffers",
-    "filename": "src/tutorials/multiple-vertex-buffers/index.html"
-  },
-  {
-    "title": "Interleaved Vertex Buffers",
-    "filename": "src/tutorials/interleaved-vertex-buffers/index.html"
-  },
-  {
-    "title": "Dynamic Uniform Buffer",
-    "filename": "src/tutorials/dynamic-uniform-buffer/index.html"
-  },
-  {
-    "title": "Combined Transformations",
-    "filename": "src/tutorials/combined-transformations/index.html"
   }
 ]
