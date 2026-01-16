@@ -8,9 +8,23 @@ const copyMarkdownPlugin = () => {
     name: "copy-markdown",
     closeBundle: () => {
       const files = globSync("src/tutorials/*/document.md");
+      const sourceFiles = globSync("src/tutorials/**/*.{ts,wgsl,md}")
+        .concat(globSync("src/utils/webgpu-util.ts"));
+      const extraFiles = ["tutorials.json"];
       files.forEach((file) => {
         const dest = resolve(__dirname, "dist", file);
         fs.mkdirSync(dirname(dest), { recursive: true });
+        fs.copyFileSync(resolve(__dirname, file), dest);
+        console.log(`Copied ${file} to dist/`);
+      });
+      sourceFiles.forEach((file) => {
+        const dest = resolve(__dirname, "dist", file);
+        fs.mkdirSync(dirname(dest), { recursive: true });
+        fs.copyFileSync(resolve(__dirname, file), dest);
+        console.log(`Copied ${file} to dist/`);
+      });
+      extraFiles.forEach((file) => {
+        const dest = resolve(__dirname, "dist", file);
         fs.copyFileSync(resolve(__dirname, file), dest);
         console.log(`Copied ${file} to dist/`);
       });

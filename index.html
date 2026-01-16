@@ -887,14 +887,17 @@
         return ["index.ts", "webgpu-util.ts"];
       }
 
+      const isDev = import.meta.env.DEV;
+      const rawSuffix = isDev ? "?raw" : "";
+
       function getCurrentCodePath() {
         if (!currentCodeFile) return "";
         if (currentCodeFile === "webgpu-util.ts") {
-          return "./src/utils/webgpu-util.ts?raw";
+          return `./src/utils/webgpu-util.ts${rawSuffix}`;
         }
         if (!currentPage) return "";
         const tutorialDir = currentPage.replace(/\/index\.html$/, "");
-        return `./${tutorialDir}/${currentCodeFile}?raw`;
+        return `./${tutorialDir}/${currentCodeFile}${rawSuffix}`;
       }
 
       async function loadDemoCode() {
