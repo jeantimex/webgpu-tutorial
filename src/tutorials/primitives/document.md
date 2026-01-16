@@ -1,72 +1,125 @@
 # Primitives
 
-In the last tutorial, we successfully set up a WebGPU environment and rendered a basic triangle. However, we simply used the default settings for how vertices are assembled.
+This tutorial explains **primitive topology**, the rule WebGPU uses to turn a list of vertices into points, lines, or triangles. We use a small GUI so you can switch topology live and see how the same vertices connect differently.
 
-In this tutorial, we will explore **Primitive Topologies**, which define whether our vertices form triangles, lines, or individual points.
+## What you should know after this tutorial
 
-**Key Learning Points:**
+- What a **primitive topology** is.
+- How `point-list`, `line-list`, `line-strip`, `triangle-list`, and `triangle-strip` differ.
+- How to rebuild a pipeline when a topology changes.
 
-- Understanding different topology types: `point-list`, `line-list`, `line-strip`, `triangle-list`, `triangle-strip`.
-- How to configure the `primitive` property in a `GPURenderPipeline`.
-- Using `stripIndexFormat` for strip topologies.
-- Rendering multiple pipelines in a single frame using `setViewport`.
+## 1) The idea of a topology
 
-## 1. The Primitive Property
+WebGPU needs a rule to decide how vertices form shapes. That rule is `primitive.topology` on the render pipeline.
 
-When creating a `GPURenderPipeline`, the `primitive` object allows you to specify the `topology`.
+If you draw 6 vertices:
+
+- Are they **6 points**?
+- Are they **3 separate lines**?
+- Are they **2 triangles**?
+
+The topology answers that question.
+
+## 2) The vertices we use
+
+We define a small hexagon-like shape in the vertex shader using an array of 6 positions. We do this with `@builtin(vertex_index)` so we do **not** need a vertex buffer yet.
+
+```wgsl
+@vertex
+fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
+  var pos = array<vec2f, 6>(
+    vec2f( 0.0,  0.5),
+    vec2f(-0.5,  0.0),
+    vec2f(-0.5, -0.5),
+    vec2f( 0.0, -0.5),
+    vec2f( 0.5, -0.5),
+    vec2f( 0.5,  0.0)
+  );
+  return vec4f(pos[VertexIndex], 0.0, 1.0);
+}
+```
+
+Each invocation of the vertex shader gets a different `VertexIndex`, so we pick a different position each time.
+
+## 3) The five topologies
+
+### `point-list`
+Each vertex becomes a **single point**.
+
+### `line-list`
+Every pair of vertices is one line:
+`(v0,v1)`, `(v2,v3)`, `(v4,v5)`.
+
+### `line-strip`
+Every vertex (after the first) extends the line:
+`(v0,v1)`, `(v1,v2)`, `(v2,v3)` ...
+
+### `triangle-list`
+Every 3 vertices form an independent triangle:
+`(v0,v1,v2)`, `(v3,v4,v5)`.
+
+### `triangle-strip`
+Every new vertex after the first two creates a new triangle:
+`(v0,v1,v2)`, `(v1,v2,v3)`, `(v2,v3,v4)` ...
+
+## 4) Switching topology with a GUI
+
+We reuse the same shader, but create a pipeline based on the selected topology. When the user changes the dropdown, we rebuild the pipeline and render again.
 
 ```typescript
-const pipeline = device.createRenderPipeline({
-  // ...
-  primitive: {
-    topology: "point-list", // <--- Changing the shape type
-  },
+const topologies: GPUPrimitiveTopology[] = [
+  "point-list",
+  "line-list",
+  "line-strip",
+  "triangle-list",
+  "triangle-strip",
+];
+
+const settings = {
+  topology: "triangle-list" as GPUPrimitiveTopology,
+};
+
+const createPipeline = (topology: GPUPrimitiveTopology) => {
+  const primitive: GPUPrimitiveState = { topology };
+  if (topology === "line-strip" || topology === "triangle-strip") {
+    primitive.stripIndexFormat = "uint32";
+  }
+
+  return device.createRenderPipeline({
+    label: `${topology} Pipeline`,
+    layout: "auto",
+    vertex: { module: shaderModule, entryPoint: "vs_main" },
+    fragment: { module: shaderModule, entryPoint: "fs_main", targets: [{ format: canvasFormat }] },
+    primitive,
+  });
+};
+
+let pipeline = createPipeline(settings.topology);
+
+const gui = new GUI({ title: "Primitives" });
+gui.add(settings, "topology", topologies).name("Topology").onChange(() => {
+  pipeline = createPipeline(settings.topology);
+  render();
 });
 ```
 
-Here are the supported topologies and their typical use cases:
+**Why `stripIndexFormat`?**  
+Strip topologies can use index buffers to “restart” strips. We are not using index buffers yet, but WebGPU requires that the pipeline says which index format it would expect if we did.
 
-### `point-list`
+## 5) Rendering the selected topology
 
-- **Description**: Draws a single point for each vertex.
-- **Use Case**: Particle systems, point clouds, or visual debugging (marking vertex positions).
+We now render a single view, using the currently selected pipeline:
 
-### `line-list`
-
-- **Description**: Draws a line segment for every pair of vertices. Vertices (v0, v1) form the first line, (v2, v3) form the second, and so on. If you have an odd number of vertices, the last one is ignored.
-- **Use Case**: Wireframe rendering, drawing unconnected edges, or simple vector graphics (like loose hairs or grass blades).
-
-### `line-strip`
-
-- **Description**: Draws a connected series of line segments. Vertices (v0, v1) form the first line, (v1, v2) form the second, etc.
-- **Requirement**: When using `line-strip`, you generally need to specify a `stripIndexFormat` in the pipeline configuration if you plan to use an index buffer (though it's good practice to be aware of it).
-- **Use Case**: Drawing paths, trails, function graphs, or continuous outlines.
-
-### `triangle-list` (Default)
-
-- **Description**: Draws a distinct triangle for every three vertices. (v0, v1, v2) is the first triangle, (v3, v4, v5) is the second.
-- **Use Case**: Most 3D geometry (meshes, terrain, characters) is built from independent triangles.
-
-### `triangle-strip`
-
-- **Description**: Draws a connected series of triangles. (v0, v1, v2) is the first triangle, (v1, v2, v3) is the second, and so on.
-- **Requirement**: Like `line-strip`, this topology requires `stripIndexFormat` to be set in the pipeline descriptor.
-- **Use Case**: Optimizing memory bandwidth for continuous surfaces like terrain or spheres, as it reuses vertices implicitly.
-
-## 2. Rendering Multiple Topologies
-
-In this example, we define 6 vertices arranged in a hexagon shape. We then create 5 different render pipelines—one for each topology—and render them side-by-side using `setViewport`.
-
-- **Top-Left**: `point-list` (6 individual points)
-- **Top-Center**: `line-list` (3 separate lines)
-- **Top-Right**: `line-strip` (a continuous line path)
-- **Bottom-Left**: `triangle-list` (2 separate triangles)
-- **Bottom-Center**: `triangle-strip` (4 connected triangles filling the shape)
+```typescript
+passEncoder.setPipeline(pipeline);
+passEncoder.draw(6);
+```
 
 ## Full Code
 
 ```typescript
-import { initWebGPU } from "./utils/webgpu-util";
+import { initWebGPU } from "../../utils/webgpu-util";
+import GUI from "lil-gui";
 
 async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -103,11 +156,12 @@ async function init(): Promise<void> {
     "triangle-strip",
   ];
 
-  const pipelines: GPURenderPipeline[] = topologies.map((topology) => {
-    const primitive: GPUPrimitiveState = {
-      topology,
-    };
-    // stripIndexFormat is required for strip topologies
+  const settings = {
+    topology: "triangle-list" as GPUPrimitiveTopology,
+  };
+
+  const createPipeline = (topology: GPUPrimitiveTopology) => {
+    const primitive: GPUPrimitiveState = { topology };
     if (topology === "line-strip" || topology === "triangle-strip") {
       primitive.stripIndexFormat = "uint32";
     }
@@ -126,7 +180,18 @@ async function init(): Promise<void> {
       },
       primitive,
     });
-  });
+  };
+
+  let pipeline = createPipeline(settings.topology);
+
+  const gui = new GUI({ title: "Primitives" });
+  gui
+    .add(settings, "topology", topologies)
+    .name("Topology")
+    .onChange(() => {
+      pipeline = createPipeline(settings.topology);
+      render();
+    });
 
   function render(): void {
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
@@ -148,31 +213,10 @@ async function init(): Promise<void> {
     const passEncoder: GPURenderPassEncoder =
       commandEncoder.beginRenderPass(renderPassDescriptor);
 
-    // Grid layout: 3 columns, 2 rows
-    const cols = 3;
-    const width = canvas.width / cols;
-    const height = canvas.height / 2;
-
-    pipelines.forEach((pipeline, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-
-      const x = col * width;
-      const y = row * height;
-
-      passEncoder.setViewport(x, y, width, height, 0, 1);
-      passEncoder.setScissorRect(
-        Math.floor(x),
-        Math.floor(y),
-        Math.floor(width),
-        Math.floor(height)
-      );
-      passEncoder.setPipeline(pipeline);
-      passEncoder.draw(6);
-    });
+    passEncoder.setPipeline(pipeline);
+    passEncoder.draw(6);
 
     passEncoder.end();
-
     device.queue.submit([commandEncoder.finish()]);
   }
 
@@ -183,3 +227,10 @@ init().catch((err: Error) => {
   console.error(err);
 });
 ```
+
+## Common beginner mistakes
+
+- **Forgetting to change topology**: If nothing changes, verify `primitive.topology`.
+- **Using strip topology without `stripIndexFormat`**: The pipeline will fail validation.
+
+In the next tutorial we will move beyond `vertex_index` and start using **vertex buffers**, which is how real meshes are provided to the GPU.

@@ -278,6 +278,14 @@
         background-color: var(--header-bg);
       }
 
+      #demo-header {
+        display: none;
+        align-items: center;
+        min-height: 66px;
+        border-bottom: 1px solid var(--sidebar-border);
+        background-color: var(--header-bg);
+      }
+
       .tab-btn {
         border: none;
         background: transparent;
@@ -456,11 +464,12 @@
       /* Float Box */
       #controls {
         position: absolute;
-        top: 1rem;
+        top: 0;
         right: 1rem;
         display: flex;
         align-items: center;
         gap: 12px; /* Spacing between groups */
+        height: 66px;
         z-index: 10;
       }
 
@@ -555,7 +564,7 @@
         vertical-align: middle;
       }
     </style>
-    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-CZPs9sH4.js"></script>
+    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-D-ZagkUe.js"></script>
     <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/modulepreload-polyfill-B5Qt9EMX.js">
   </head>
   <body>
@@ -639,6 +648,7 @@
       </div>
 
       <div id="demo-container">
+        <div id="demo-header"></div>
         <div id="demo-tabs"></div>
         <iframe id="content-frame" src="about:blank"></iframe>
         <div id="demo-code">
