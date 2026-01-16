@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist",
     "format": "prettier --write .",
-    "sync:tutorials": "node scripts/sync-tutorials.mjs"
+    "sync:tutorials": "node scripts/sync-tutorials.mjs",
+    "tutorial:create": "node scripts/tutorials.mjs create",
+    "tutorial:delete": "node scripts/tutorials.mjs delete"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
