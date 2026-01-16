@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "sync:tutorials": "node scripts/sync-tutorials.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

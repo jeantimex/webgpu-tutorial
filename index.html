@@ -893,8 +893,8 @@
           return "./src/utils/webgpu-util.ts?raw";
         }
         if (!currentPage) return "";
-        const base = currentPage.replace(".html", "");
-        return `./src/tutorials/${base}/${currentCodeFile}?raw`;
+        const tutorialDir = currentPage.replace(/\/index\.html$/, "");
+        return `./${tutorialDir}/${currentCodeFile}?raw`;
       }
 
       async function loadDemoCode() {
@@ -1021,7 +1021,8 @@
           btnDemo.classList.remove("active");
           btnCode.classList.remove("active");
           iframe.src = "about:blank";
-          const mdFile = `./src/tutorials/${currentPage.replace(".html", "")}/document.md`;
+          const tutorialDir = currentPage.replace(/\/index\.html$/, "");
+          const mdFile = `./${tutorialDir}/document.md`;
           fetch(mdFile)
             .then((res) => {
               if (!res.ok) throw new Error("Markdown not found");
