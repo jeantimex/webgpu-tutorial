@@ -1,38 +1,30 @@
 import { initWebGPU } from "../../utils/webgpu-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  const shaderModule: GPUShaderModule = device.createShaderModule({
-    label: "Red Triangle Shader",
-    code: `
-      @vertex
-      fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
-        var pos = array<vec2f, 3>(
-          vec2f(0.0, 0.5),
-          vec2f(-0.5, -0.5),
-          vec2f(0.5, -0.5)
-        );
-        return vec4f(pos[VertexIndex], 0.0, 1.0);
-      }
+  const vertexModule: GPUShaderModule = device.createShaderModule({
+    label: "Red Triangle Vertex Shader",
+    code: vertexWGSL,
+  });
 
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return vec4f(1.0, 0.0, 0.0, 1.0);
-      }
-    `,
+  const fragmentModule: GPUShaderModule = device.createShaderModule({
+    label: "Red Triangle Fragment Shader",
+    code: fragmentWGSL,
   });
 
   const pipeline: GPURenderPipeline = device.createRenderPipeline({
     label: "Red Triangle Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [
         {

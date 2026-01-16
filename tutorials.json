@@ -1,7 +1,8 @@
 [
   {
     "title": "Hello WebGPU",
-    "filename": "hello-webgpu.html"
+    "filename": "hello-webgpu.html",
+    "code": ["index.ts", "vertex.wgsl", "fragment.wgsl", "webgpu-util.ts"]
   },
   {
     "title": "Primitives",

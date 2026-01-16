@@ -595,10 +595,7 @@
       </div>
 
       <div id="demo-container">
-        <div id="demo-tabs">
-          <button class="tab-btn" data-tab="code">index.ts</button>
-          <button class="tab-btn" data-tab="webgpu-util">webgpu-util.ts</button>
-        </div>
+        <div id="demo-tabs"></div>
         <iframe id="content-frame" src="about:blank"></iframe>
         <div id="demo-code">
           <pre><code class="language-ts"></code></pre>
@@ -631,7 +628,7 @@
       let currentPage = "";
       let links = [];
       let tutorials = [];
-      let currentDemoTab = "code";
+      let currentCodeFile = "";
 
       async function initTutorials() {
         try {
@@ -795,13 +792,26 @@
       }
 
       // --- Navigation ---
+      function getCurrentTutorial() {
+        return tutorials.find((tutorial) => tutorial.filename === currentPage);
+      }
+
+      function getCodeFiles() {
+        const tutorial = getCurrentTutorial();
+        if (tutorial && Array.isArray(tutorial.code) && tutorial.code.length > 0) {
+          return tutorial.code;
+        }
+        return ["index.ts", "webgpu-util.ts"];
+      }
+
       function getCurrentCodePath() {
-        if (currentDemoTab === "webgpu-util") {
+        if (!currentCodeFile) return "";
+        if (currentCodeFile === "webgpu-util.ts") {
           return "./src/utils/webgpu-util.ts?raw";
         }
         if (!currentPage) return "";
         const base = currentPage.replace(".html", "");
-        return `./src/tutorials/${base}/index.ts?raw`;
+        return `./src/tutorials/${base}/${currentCodeFile}?raw`;
       }
 
       async function loadDemoCode() {
@@ -836,6 +846,32 @@
         }
       }
 
+      function renderCodeTabs() {
+        const files = getCodeFiles();
+        if (!files.length) {
+          demoTabs.innerHTML = "";
+          currentCodeFile = "";
+          return;
+        }
+        if (!files.includes(currentCodeFile)) {
+          currentCodeFile = files[0];
+        }
+
+        demoTabs.innerHTML = "";
+        const frag = document.createDocumentFragment();
+        files.forEach((file) => {
+          const btn = document.createElement("button");
+          btn.className = "tab-btn";
+          btn.setAttribute("data-file", file);
+          btn.textContent = file;
+          if (file === currentCodeFile) {
+            btn.classList.add("active");
+          }
+          frag.appendChild(btn);
+        });
+        demoTabs.appendChild(frag);
+      }
+
       function updateDemoView() {
         if (currentMode !== "demo" && currentMode !== "code") {
           demoContainer.style.display = "none";
@@ -845,15 +881,8 @@
         demoContainer.style.display = "flex";
         demoTabs.style.display = currentMode === "code" ? "flex" : "none";
         if (currentMode === "code") {
-          if (!["code", "webgpu-util"].includes(currentDemoTab)) {
-            currentDemoTab = "code";
-          }
+          renderCodeTabs();
         }
-        const tabButtons = demoTabs.querySelectorAll(".tab-btn");
-        tabButtons.forEach((btn) => {
-          const tab = btn.getAttribute("data-tab");
-          btn.classList.toggle("active", tab === currentDemoTab);
-        });
 
         if (currentMode === "demo") {
           iframe.style.display = "block";
@@ -949,9 +978,9 @@
       demoTabs.addEventListener("click", (e) => {
         const tabBtn = e.target.closest(".tab-btn");
         if (!tabBtn) return;
-        const tab = tabBtn.getAttribute("data-tab");
-        if (tab && tab !== currentDemoTab) {
-          currentDemoTab = tab;
+        const file = tabBtn.getAttribute("data-file");
+        if (file && file !== currentCodeFile) {
+          currentCodeFile = file;
           updateDemoView();
         }
       });
