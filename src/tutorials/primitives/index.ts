@@ -1,4 +1,5 @@
 import { initWebGPU } from "../../utils/webgpu-util";
+import GUI from "lil-gui";
 
 async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -35,7 +36,13 @@ async function init(): Promise<void> {
     "triangle-strip",
   ];
 
-  const pipelines: GPURenderPipeline[] = topologies.map((topology) => {
+  const settings = {
+    topology: "triangle-list" as GPUPrimitiveTopology,
+  };
+
+  const createPipeline = (
+    topology: GPUPrimitiveTopology
+  ): GPURenderPipeline => {
     const primitive: GPUPrimitiveState = {
       topology,
     };
@@ -58,7 +65,18 @@ async function init(): Promise<void> {
       },
       primitive,
     });
-  });
+  };
+
+  let pipeline = createPipeline(settings.topology);
+
+  const gui = new GUI({ title: "Primitives" });
+  gui
+    .add(settings, "topology", topologies)
+    .name("Topology")
+    .onChange(() => {
+      pipeline = createPipeline(settings.topology);
+      render();
+    });
 
   function render(): void {
     const commandEncoder: GPUCommandEncoder = device.createCommandEncoder();
@@ -80,28 +98,8 @@ async function init(): Promise<void> {
     const passEncoder: GPURenderPassEncoder =
       commandEncoder.beginRenderPass(renderPassDescriptor);
 
-    // Grid layout: 3 columns, 2 rows
-    const cols = 3;
-    const width = canvas.width / cols;
-    const height = canvas.height / 2;
-
-    pipelines.forEach((pipeline, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-
-      const x = col * width;
-      const y = row * height;
-
-      passEncoder.setViewport(x, y, width, height, 0, 1);
-      passEncoder.setScissorRect(
-        Math.floor(x),
-        Math.floor(y),
-        Math.floor(width),
-        Math.floor(height)
-      );
-      passEncoder.setPipeline(pipeline);
-      passEncoder.draw(6);
-    });
+    passEncoder.setPipeline(pipeline);
+    passEncoder.draw(6);
 
     passEncoder.end();
 
