@@ -235,7 +235,7 @@ async function init() {
         view: textureView, 
         loadOp: 'clear', 
         storeOp: 'store', 
-        clearValue: { r: 0, g: 0, b: 0, a: 1 } 
+        clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1.0 } 
       }]
     });
     renderPass.setPipeline(renderPipeline);

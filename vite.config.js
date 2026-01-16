@@ -9,7 +9,8 @@ const copyMarkdownPlugin = () => {
     closeBundle: () => {
       const files = globSync("src/tutorials/*/document.md");
       const sourceFiles = globSync("src/tutorials/**/*.{ts,wgsl,md}")
-        .concat(globSync("src/utils/webgpu-util.ts"));
+        .concat(globSync("src/utils/webgpu-util.ts"))
+        .concat(globSync("src/styles/**/*.css"));
       const extraFiles = ["tutorials.json"];
       files.forEach((file) => {
         const dest = resolve(__dirname, "dist", file);

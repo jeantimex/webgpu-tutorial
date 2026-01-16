@@ -81,7 +81,7 @@ async function init() {
       colorAttachments: [
         {
           view: textureView,
-          clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
+          clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1.0 },
           loadOp: "clear",
           storeOp: "store",
         },
