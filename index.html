@@ -19,6 +19,7 @@
     <style>
       :root {
         color-scheme: light dark;
+        --code-line-height: 1.5;
 
         /* Sidebar Colors */
         --sidebar-bg: light-dark(#fff, #242424);
@@ -311,10 +312,9 @@
 
       #demo-code pre {
         margin: 0;
-        background-color: var(--md-pre-bg);
-        padding: 1em;
-        border-radius: 8px;
-        overflow-x: auto;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
       }
 
       #demo-code code {
@@ -354,10 +354,9 @@
       }
 
       #markdown-content pre {
-        background-color: var(--md-pre-bg);
-        padding: 1em;
-        border-radius: 8px;
-        overflow-x: auto;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
         transition: background-color 0.3s;
         margin: 0; /* Remove margin from pre inside container */
       }
@@ -379,6 +378,53 @@
         margin: 0;
         background-color: var(--md-pre-bg);
         border-radius: 8px;
+      }
+
+      .code-block {
+        display: flex;
+        align-items: stretch;
+        overflow: auto;
+        border-radius: 8px;
+      }
+
+      .code-lines {
+        flex: 0 0 auto;
+        padding: 1em 0.75em 1em 1em;
+        border-right: 1px solid var(--sidebar-border);
+        color: light-dark(#9aa0a6, #7a8189);
+        font-family: monospace;
+        font-size: inherit;
+        line-height: var(--code-line-height);
+        text-align: right;
+        user-select: none;
+        min-width: 3.5em;
+        position: sticky;
+        left: 0;
+        background-color: var(--md-pre-bg);
+        z-index: 1;
+      }
+
+      .code-lines span {
+        display: block;
+        line-height: var(--code-line-height);
+      }
+
+      .code-content {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .code-content pre {
+        margin: 0;
+        padding: 1em 1em 1em 0.75em;
+        background-color: transparent;
+        border-radius: 0;
+        overflow: visible;
+      }
+
+      .code-content code {
+        display: block;
+        line-height: var(--code-line-height);
       }
 
       .copy-btn {
@@ -509,7 +555,7 @@
         vertical-align: middle;
       }
     </style>
-    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-haBIfsFk.js"></script>
+    <script type="module" crossorigin src="/webgpu-tutorial/assets/index-L8VunlNS.js"></script>
     <link rel="modulepreload" crossorigin href="/webgpu-tutorial/assets/modulepreload-polyfill-B5Qt9EMX.js">
   </head>
   <body>
@@ -593,10 +639,7 @@
       </div>
 
       <div id="demo-container">
-        <div id="demo-tabs">
-          <button class="tab-btn" data-tab="code">index.ts</button>
-          <button class="tab-btn" data-tab="webgpu-util">webgpu-util.ts</button>
-        </div>
+        <div id="demo-tabs"></div>
         <iframe id="content-frame" src="about:blank"></iframe>
         <div id="demo-code">
           <pre><code class="language-ts"></code></pre>
