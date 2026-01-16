@@ -281,6 +281,18 @@ function randColor() {
   return [rand(), rand(), rand(), 1];
 }
 
+function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement) {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+    return true;
+  }
+  return false;
+}
+
 async function init() {
   if (!navigator.gpu) {
     throw new Error("WebGPU not supported on this browser.");
@@ -606,6 +618,7 @@ async function init() {
       time = ts * 0.001;
     }
 
+    resizeCanvasToDisplaySize(canvas);
     const canvasTexture = context.getCurrentTexture();
     renderPassDescriptor.colorAttachments![0].view = canvasTexture.createView();
 
