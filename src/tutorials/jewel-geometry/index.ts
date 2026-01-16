@@ -1,5 +1,6 @@
 import { mat3, mat4, vec3 } from "wgpu-matrix";
 import GUI from "lil-gui";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 
 const solidColorLitWGSL = `
 struct Uniforms {
@@ -604,6 +605,7 @@ async function init() {
       time = ts * 0.001;
     }
 
+    resizeCanvasToDisplaySize(canvas);
     const canvasTexture = context.getCurrentTexture();
     renderPassDescriptor.colorAttachments![0].view = canvasTexture.createView();
 
