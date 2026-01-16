@@ -27,3 +27,4 @@ body {
   right: 10px;
   z-index: 100;
 }
+@import "./common.css";
