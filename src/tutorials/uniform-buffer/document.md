@@ -1,42 +1,53 @@
 # Uniform Buffer
 
-In the last tutorial, we organized our shader code using structs. Up until now, we've only passed data that changes _per vertex_ (via Vertex Buffers). But what if we want to pass data that remains **constant** for the entire object, like a global color, a transformation matrix, or light settings?
+So far we have only sent data that changes **per vertex** (positions and colors). But real rendering needs data that stays constant for a draw call: object colors, transformation matrices, lighting parameters, and more. WebGPU uses **uniform buffers** for this kind of data.
 
-In this tutorial, we will learn how to use **Uniform Buffers** and **Bind Groups** to pass global data to our shaders.
+This tutorial introduces uniform buffers and bind groups, the mechanism that connects CPU-side resources to shader variables.
 
-**Key Learning Points:**
+**Key learning points:**
 
-- Difference between Attributes (`@vertex`) and Uniforms (`@group`).
-- Creating a buffer with `GPUBufferUsage.UNIFORM`.
-- Understanding **Bind Groups** and **Bind Group Layouts**.
-- Writing shaders with `@group(0) @binding(0)`.
-- Using `layout: "auto"` for automatic pipeline configuration.
+- The difference between **vertex attributes** and **uniforms**.
+- How to create and fill a `GPUBuffer` with `GPUBufferUsage.UNIFORM`.
+- How `@group` and `@binding` in WGSL map to bind groups in JavaScript.
+- Why alignment matters and why `vec4f` is the safe choice for small uniforms.
+- How to bind uniform data at draw time.
 
-## 1. Attributes vs. Uniforms
+## 1. Attributes vs. uniforms
 
-- **Attributes (`@vertex`)**: Change per vertex (e.g., position, UV). Data comes from `VertexBuffer`.
-- **Uniforms (`@group`)**: Constant for all vertices in a draw call. Data comes from `UniformBuffer`.
+- **Attributes** (`@location`) change per vertex and come from vertex buffers.
+- **Uniforms** (`var<uniform>`) stay constant for a whole draw call and come from uniform buffers.
 
-## 2. Creating the Uniform Buffer
+Attributes describe geometry. Uniforms describe global or per-object parameters.
 
-Creating a uniform buffer is similar to a vertex buffer, but we use the `UNIFORM` usage flag.
+## 2. Create the uniform data
+
+We want a single constant color for the entire triangle. Use a `Float32Array` with four floats (RGBA).
 
 ```typescript
-// Teal color: R=0, G=0.5, B=0.5, A=1.0
 const color = new Float32Array([0.0, 0.5, 0.5, 1.0]);
+```
 
+### Alignment note
+
+Uniform buffers follow strict alignment rules. A `vec3f` is 12 bytes, but in uniform memory it is padded to 16 bytes. Using `vec4f` avoids padding surprises and matches 16-byte alignment by default.
+
+## 3. Allocate the uniform buffer
+
+```typescript
 const uniformBuffer = device.createBuffer({
+  label: "Uniform Color Buffer",
   size: color.byteLength,
   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 });
+
 device.queue.writeBuffer(uniformBuffer, 0, color);
 ```
 
-**Note on Alignment**: WebGPU memory layout rules (std140) often require specific byte alignment. `vec3` can be tricky because it requires 16-byte padding in many cases. Using `vec4` (16 bytes) is usually safer and easier to manage.
+We use `COPY_DST` so we can upload data from the CPU. This is how you update uniforms each frame as well.
 
-## 3. Shader with Bind Groups
+## 4. Declare the uniform in WGSL
 
-In WGSL, we declare uniforms using the `var<uniform>` keyword, and we must assign them to a **Group** and a **Binding**.
+Uniforms live in a struct and are referenced via a global `var<uniform>` that specifies a group and binding.
 
 ```typescript
 struct Uniforms {
@@ -46,86 +57,88 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> global : Uniforms;
 ```
 
-- **`@group(0)`**: Corresponds to the index in `setBindGroup(0, ...)`.
-- **`@binding(0)`**: Corresponds to the specific resource slot within that group.
+This creates a single uniform block at **group 0, binding 0**.
 
-## 4. Pipeline Configuration
+## 5. Use the uniform in the fragment shader
 
-The pipeline needs to know two things: how to read our **Vertex Buffers** and how to access our **Uniforms**.
+```typescript
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return global.color;
+}
+```
 
-In the `vertex` property, we describe the geometry layout (as we did in previous tutorials). For the uniforms, we use `layout: "auto"` to let WebGPU infer the binding points from our shader.
+Every pixel now reads the same color from the uniform buffer.
+
+## 6. Let the pipeline infer the bind group layout
+
+We set `layout: "auto"` so WebGPU derives the bind group layout from the shader code:
 
 ```typescript
 const pipeline = device.createRenderPipeline({
   label: "Uniform Pipeline",
-  layout: "auto", // Automatically generate the Bind Group layout from shader
+  layout: "auto",
   vertex: {
-    module: shaderModule,
+    module: vertexModule,
     entryPoint: "vs_main",
     buffers: [
       {
-        arrayStride: 2 * 4, // 2 floats * 4 bytes
+        arrayStride: 2 * 4,
         attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }],
       },
     ],
   },
-  // ... fragment and primitive stages
+  fragment: {
+    module: fragmentModule,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: { topology: "triangle-list" },
 });
 ```
 
-When we set `layout` to `"auto"`, WebGPU analyzes our shader's `@group` and `@binding` declarations and creates the appropriate `GPUPipelineLayout` for us. Crucially, this allows us to "ask" the pipeline for its generated layout later when we create the bind group.
+The pipeline now knows there is a uniform block at group 0 / binding 0.
 
-## 5. The Bind Group
+## 7. Create the bind group
 
-This is a new concept. A **Bind Group** is a collection of resources (buffers, textures, samplers) that are bound together to the pipeline. It acts as the bridge between your JavaScript resources and the Shader's `@group` definitions.
+A **bind group** is a container for resources that match a layout. We connect the uniform buffer to binding 0:
 
 ```typescript
 const bindGroup = device.createBindGroup({
   label: "Uniform Bind Group",
-  layout: pipeline.getBindGroupLayout(0), // Get the layout inferred from shader
+  layout: pipeline.getBindGroupLayout(0),
   entries: [
     {
-      binding: 0, // Matches @binding(0) in shader
+      binding: 0,
       resource: { buffer: uniformBuffer },
     },
   ],
 });
 ```
 
-### Deep Dive: When to use Groups vs. Bindings?
-
-You might wonder: "Why do we have both `@group(x)` and `@binding(y)`? Why not just a single flat list of bindings?"
-
-The reason is **performance** and **frequency of updates**.
-
-- **@binding**: Think of these as individual slots within a container.
-- **@group**: Think of this as the container itself. You swap the _entire_ container at once.
-
-**Real-world Example:** Imagine a game rendering a 3D scene.
-
-1.  **Group 0 (Global)**: Camera View & Projection Matrix.
-    - _Updates:_ Once per frame.
-    - _Shared by:_ EVERYTHING drawn in that frame.
-2.  **Group 1 (Material)**: Textures and Material properties (shiny/dull).
-    - _Updates:_ Changes only when you switch from drawing "wood" objects to "metal" objects.
-    - _Shared by:_ All wooden chairs, tables, and crates.
-3.  **Group 2 (Object)**: World Transform Matrix (where is _this_ specific chair?).
-    - _Updates:_ Changes for every single object drawn.
-
-By organizing resources this way, you minimize the number of expensive CPU-to-GPU commands. You set Group 0 once, set Group 1 a few times, and set Group 2 frequently.
-
-## 6. Rendering
-
-In the render loop, alongside setting the vertex buffer, we now also set the bind group.
+## 8. Bind it at draw time
 
 ```typescript
-// Attributes (Slot 0)
+passEncoder.setPipeline(pipeline);
 passEncoder.setVertexBuffer(0, vertexBuffer);
-
-// Uniforms (Group 0)
 passEncoder.setBindGroup(0, bindGroup);
-
 passEncoder.draw(3);
 ```
 
-Now, every pixel of the triangle will use the same color value fetched from our uniform buffer!
+The bind group makes the uniform buffer visible to the shader for this draw call.
+
+## Groups vs. bindings (why both?)
+
+Bindings are individual slots, while groups are **collections** of bindings. Grouping lets you update resources at different frequencies:
+
+- **Group 0**: per-frame data (camera, time, lighting)
+- **Group 1**: per-material data (textures, roughness)
+- **Group 2**: per-object data (transform, color)
+
+You can swap an entire group with one call, which is efficient and keeps state management clean.
+
+## Common pitfalls
+
+- **Using a `vec3f` without padding**: leads to incorrect reads.
+- **Forgetting `COPY_DST`**: prevents uploading data.
+- **Binding the wrong group index**: results in invalid or missing uniform data.

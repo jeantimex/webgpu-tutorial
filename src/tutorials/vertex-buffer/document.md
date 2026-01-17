@@ -1,50 +1,42 @@
 # Vertex Buffer
 
-In the last tutorial, we explored how to change the shape of our geometry using primitive topologies. However, our vertex positions were hardcoded directly inside the shader code. This works for a simple triangle but is impossible for complex 3D models.
+In the primitives tutorial we defined vertices directly inside the shader. That is useful for learning, but real geometry comes from the CPU. This tutorial shows the **standard WebGPU data path**: create a typed array in JavaScript, upload it to a GPU buffer, describe the buffer layout to the pipeline, and bind it for drawing.
 
-In this tutorial, we will learn how to pass data from JavaScript to the GPU using **Vertex Buffers**, allowing us to render dynamic geometry.
+By the end you will understand how CPU memory becomes GPU vertex attributes, and how `@location` in WGSL connects to buffer layouts in JavaScript.
 
-**Key Learning Points:**
+**Key learning points:**
 
-- Creating and mapping a `GPUBuffer`.
-- Understanding `Float32Array` and byte alignment.
-- Configuring `GPUVertexBufferLayout` (attributes, stride).
-- Updating shaders to accept inputs via `@location`.
-- Binding buffers with `setVertexBuffer`.
+- Why WebGPU uses **typed arrays** for vertex data.
+- How to allocate and fill a `GPUBuffer`.
+- How `GPUVertexBufferLayout` maps bytes to shader attributes.
+- How `@location` connects shader inputs to buffer attributes.
+- How the render pass binds a buffer with `setVertexBuffer`.
 
-## 1. Defining Data in JavaScript
+## 1. Define vertex data on the CPU
 
-First, we define our geometry in standard JavaScript arrays. Since WebGPU interacts with low-level memory, we use a `Float32Array`.
+We store our triangle in a `Float32Array`. Typed arrays are important because GPU memory is raw bytes; typed arrays give us a predictable byte layout.
 
 ```typescript
 // Each vertex has 2 floats (x, y)
 // prettier-ignore
 const vertices = new Float32Array([
-  0.0,  0.5, // Vertex 1 (Top)
-  -0.5, -0.5, // Vertex 2 (Bottom Left)
-  0.5, -0.5, // Vertex 3 (Bottom Right)
+  0.0,  0.5,  // Vertex 1 (Top)
+ -0.5, -0.5,  // Vertex 2 (Bottom Left)
+  0.5, -0.5,  // Vertex 3 (Bottom Right)
 ]);
 ```
 
-### Understanding Byte Sizes
+### Byte size and alignment
 
-GPU memory allocation requires us to think in bytes.
+- A `Float32` is 4 bytes.
+- Each vertex has 2 floats = 8 bytes.
+- 3 vertices x 8 bytes = **24 bytes** total.
 
-- **`Float32`**: A 32-bit floating-point number.
-- **32 bits = 4 bytes**.
-- Our array has **6 elements** (3 vertices \* 2 coordinates each).
-- Total size = **6 \* 4 bytes = 24 bytes**.
+Using `vertices.byteLength` avoids manual mistakes and stays correct if you change the data.
 
-Using `vertices.byteLength` in JavaScript is the safest way to get this value automatically.
+## 2. Create a GPU buffer
 
-## 2. Creating a Buffer
-
-We need to allocate memory on the GPU to hold this data. We use `device.createBuffer()`.
-
-- **size**: The size in bytes. `vertices.byteLength` handles this (3 vertices x 2 floats x 4 bytes = 24 bytes).
-- **usage**: We must explicitly declare how we intend to use this buffer.
-  - `GPUBufferUsage.VERTEX`: We will use it as a vertex buffer.
-  - `GPUBufferUsage.COPY_DST`: We will copy data _to_ it (destination).
+GPU buffers must declare their **size** and **usage** up front. We mark this as a vertex buffer and as a copy destination because we will upload data into it.
 
 ```typescript
 const vertexBuffer = device.createBuffer({
@@ -54,17 +46,19 @@ const vertexBuffer = device.createBuffer({
 });
 ```
 
-## 3. Writing Data to GPU
+Why `COPY_DST`? Because we will use `queue.writeBuffer`, which copies data from CPU memory into the GPU buffer.
 
-Created buffers start empty (or zeroed). We push our data to the GPU using `device.queue.writeBuffer`.
+## 3. Upload data into the buffer
 
 ```typescript
 device.queue.writeBuffer(vertexBuffer, 0, vertices);
 ```
 
-## 4. Updating the Shader
+This copies our typed array into GPU memory at byte offset 0.
 
-We no longer use `vertex_index` to look up an array. Instead, we receive input attributes directly.
+## 4. Update the vertex shader to take attributes
+
+Instead of `@builtin(vertex_index)`, the vertex shader now receives inputs from a buffer via `@location`.
 
 ```typescript
 @vertex
@@ -73,63 +67,82 @@ fn vs_main(@location(0) position : vec2f) -> @builtin(position) vec4f {
 }
 ```
 
-- **`@location(0)`**: This matches the attribute location we will define in the pipeline layout. It tells the GPU "get the data for this input from slot 0".
+- `@location(0)` declares the first attribute input.
+- The GPU will supply this from the vertex buffer we describe in the pipeline.
 
-## 5. Describing the Buffer Layout
+## 5. Describe the buffer layout
 
-We need to tell the Render Pipeline _how_ to read our buffer. This is done via `GPUVertexBufferLayout`.
+The pipeline must know how to interpret the buffer bytes. That is the role of `GPUVertexBufferLayout`.
 
 ```typescript
 const vertexBufferLayout: GPUVertexBufferLayout = {
-  arrayStride: 2 * 4, // 2 floats x 4 bytes/float = 8 bytes per vertex
+  arrayStride: 2 * 4, // 2 floats, 4 bytes each
   attributes: [
     {
-      shaderLocation: 0, // Matches @location(0) in shader
-      offset: 0, // Start reading from the beginning of the stride
-      format: "float32x2", // Corresponds to vec2f
+      shaderLocation: 0, // Matches @location(0)
+      offset: 0,         // Start of the vertex
+      format: "float32x2",
     },
   ],
 };
 ```
 
-Then we pass this layout to the pipeline creation:
+Key concepts:
+
+- **arrayStride**: how many bytes to step to get the next vertex (8 bytes here).
+- **shaderLocation**: connects to WGSL `@location(0)`.
+- **format**: tells WebGPU how to interpret bytes (here, two floats).
+
+Then we attach this layout when creating the pipeline:
 
 ```typescript
 const pipeline = device.createRenderPipeline({
-  // ...
+  label: "Vertex Buffer Pipeline",
+  layout: "auto",
   vertex: {
-    module: shaderModule,
+    module: vertexModule,
     entryPoint: "vs_main",
-    buffers: [vertexBufferLayout], // Add this line
+    buffers: [vertexBufferLayout],
   },
-  // ...
+  fragment: {
+    module: fragmentModule,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: { topology: "triangle-list" },
 });
 ```
 
-## 6. Rendering
+## 6. Bind the buffer and draw
 
-Finally, in the render loop, we must **bind** the buffer before drawing.
+Finally, we bind the buffer to slot 0 and issue a draw call.
 
 ```typescript
 passEncoder.setPipeline(pipeline);
-passEncoder.setVertexBuffer(0, vertexBuffer); // Bind vertexBuffer to slot 0
+passEncoder.setVertexBuffer(0, vertexBuffer); // Slot 0
 passEncoder.draw(3);
 ```
 
-### Deep Dive: Slots vs. Locations
+### How the data wiring works
 
-This part is crucial for understanding how data flows from JavaScript to your shaders. We have three pieces that must be "wired" together correctly:
+There are three places to keep consistent:
 
-1. **The Shader Expectation**: The vertex shader declares a variable with `@location(0)`. It's basically saying: "I am waiting for data to arrive at **Shader Location 0**."
+1. **Shader input**: `@location(0) position : vec2f`
+2. **Pipeline layout**: `shaderLocation: 0` in the buffer attributes
+3. **Binding point**: `setVertexBuffer(0, ...)` binds the buffer to slot 0
 
-2. **The JavaScript Delivery**: During the render pass, we call `passEncoder.setVertexBuffer(0, vertexBuffer)`. This plugs our `vertexBuffer` into **Buffer Slot 0**. Think of this like plugging a cable into Port 0 on a hardware device.
+If any of these mismatch, the shader reads garbage or validation fails.
 
-3. **The Pipeline Connection (The Bridge)**: This is where the `vertexBufferLayout` comes in. When we create the pipeline, we define the "wiring" in the `buffers` array:
-   - We tell the pipeline: "Look at the buffer plugged into **Slot 0**."
-   - We then define an attribute within that layout: "Take the data from this buffer and send it to **Shader Location 0**."
+## 7. Resizing and re-rendering
 
-**The data flow looks like this:** `JavaScript Buffer` → `Slot 0` → `Pipeline Bridge` → `Shader Location 0` → `vs_main(@location(0))`
+We resize the canvas to match its CSS size and device pixel ratio before rendering, then redraw on window resize. This keeps the output crisp on high DPI screens.
 
-If you wanted to use **Slot 5** in JavaScript (`setVertexBuffer(5, ...)`), you would simply update your pipeline layout to look for the buffer in the 5th index of the `buffers` array. Your shader's `@location(0)` would stay exactly the same!
+```typescript
+resizeCanvasToDisplaySize(canvas);
+```
 
-Now, the GPU reads vertex data from our buffer, passes it to the shader via `@location(0)`, and draws the triangle!
+## Common pitfalls
+
+- **Wrong stride or format**: your triangle will look distorted or disappear.
+- **Missing `COPY_DST` usage**: `writeBuffer` will fail validation.
+- **Forgetting to bind the vertex buffer**: the shader reads zeroes.
