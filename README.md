@@ -1,6 +1,31 @@
 # WebGPU Tutorial
 
-Learn WebGPU via practical, step-by-step code samples and tutorials.
+Learn WebGPU via practical, step-by-step code samples and tutorials. This project is a curated path from first triangle to real-time simulations, with a focus on clarity, modern GPU concepts, and hands-on code.
+
+## Why WebGPU
+
+WebGPU is the modern graphics and compute API for the web. It maps closely to Vulkan, Metal, and Direct3D 12, which means:
+
+- Lower driver overhead and more predictable performance
+- First-class compute shaders for GPGPU workloads
+- Explicit pipelines and resource binding for clearer mental models
+
+If you are coming from WebGL, the differences can feel big at first, but they unlock significantly more power and control.
+
+## Project goals
+
+- Teach WebGPU from first principles, without skipping the "why"
+- Provide working, minimal examples you can run and modify
+- Scale from 2D basics to 3D lighting, geometry, and compute simulations
+- Keep shader and TypeScript code close so you can connect concepts quickly
+
+## What to expect
+
+- Each tutorial is self-contained and linked below
+- The demos are interactive and designed to be modified
+- We intentionally start simple and add complexity only when needed
+
+If you are new to 3D math or GPU programming, this is a gentle path. If you are experienced, the later tutorials still offer concrete, modern WebGPU patterns.
 
 ## Tutorials
 
