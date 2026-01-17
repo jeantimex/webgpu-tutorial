@@ -11,158 +11,364 @@
   },
   {
     "title": "Primitives",
-    "filename": "src/tutorials/primitives/index.html"
+    "filename": "src/tutorials/primitives/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Vertex Buffer",
-    "filename": "src/tutorials/vertex-buffer/index.html"
+    "filename": "src/tutorials/vertex-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Shader Structs",
-    "filename": "src/tutorials/shader-structs/index.html"
+    "filename": "src/tutorials/shader-structs/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Uniform Buffer",
-    "filename": "src/tutorials/uniform-buffer/index.html"
+    "filename": "src/tutorials/uniform-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Index Buffer",
-    "filename": "src/tutorials/index-buffer/index.html"
+    "filename": "src/tutorials/index-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Multiple Vertex Buffers",
-    "filename": "src/tutorials/multiple-vertex-buffers/index.html"
+    "filename": "src/tutorials/multiple-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Interleaved Vertex Buffers",
-    "filename": "src/tutorials/interleaved-vertex-buffers/index.html"
+    "filename": "src/tutorials/interleaved-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Dynamic Uniform Buffer",
-    "filename": "src/tutorials/dynamic-uniform-buffer/index.html"
+    "filename": "src/tutorials/dynamic-uniform-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Single Transformation",
-    "filename": "src/tutorials/single-transformation/index.html"
+    "filename": "src/tutorials/single-transformation/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Combined Transformations",
-    "filename": "src/tutorials/combined-transformations/index.html"
+    "filename": "src/tutorials/combined-transformations/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Instancing",
-    "filename": "src/tutorials/instancing/index.html"
+    "filename": "src/tutorials/instancing/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Instanced Vertex Buffer",
-    "filename": "src/tutorials/instanced-vertex-buffer/index.html"
+    "filename": "src/tutorials/instanced-vertex-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Switching Pipelines",
-    "filename": "src/tutorials/switching-pipelines/index.html"
+    "filename": "src/tutorials/switching-pipelines/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Switching Vertex Buffers",
-    "filename": "src/tutorials/switching-vertex-buffers/index.html"
+    "filename": "src/tutorials/switching-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Simple Compute Shader",
-    "filename": "src/tutorials/simple-compute/index.html"
+    "filename": "src/tutorials/simple-compute/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl"
+    ]
   },
   {
     "title": "Particle System",
-    "filename": "src/tutorials/particle-system/index.html"
+    "filename": "src/tutorials/particle-system/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl"
+    ]
   },
   {
     "title": "Image Particles",
-    "filename": "src/tutorials/image-particles/index.html"
+    "filename": "src/tutorials/image-particles/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl"
+    ]
   },
   {
     "title": "Image Processing",
-    "filename": "src/tutorials/image-processing/index.html"
+    "filename": "src/tutorials/image-processing/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl"
+    ]
   },
   {
     "title": "Game of Life",
-    "filename": "src/tutorials/game-of-life/index.html"
+    "filename": "src/tutorials/game-of-life/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl"
+    ]
   },
   {
     "title": "Boids Simulation",
-    "filename": "src/tutorials/boids-simulation/index.html"
+    "filename": "src/tutorials/boids-simulation/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl"
+    ]
   },
   {
     "title": "Hello Cube (3D & MVP)",
-    "filename": "src/tutorials/hello-cube/index.html"
+    "filename": "src/tutorials/hello-cube/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Indexed Cube",
-    "filename": "src/tutorials/indexed-cube/index.html"
+    "filename": "src/tutorials/indexed-cube/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Cube Face Colors",
-    "filename": "src/tutorials/cube-face-colors/index.html"
+    "filename": "src/tutorials/cube-face-colors/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Textured Cube",
-    "filename": "src/tutorials/textured-cube/index.html"
+    "filename": "src/tutorials/textured-cube/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Texture Atlas",
-    "filename": "src/tutorials/texture-atlas/index.html"
+    "filename": "src/tutorials/texture-atlas/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Directional Light",
-    "filename": "src/tutorials/directional-light/index.html"
+    "filename": "src/tutorials/directional-light/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Ambient Light",
-    "filename": "src/tutorials/ambient-light/index.html"
+    "filename": "src/tutorials/ambient-light/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Point Light",
-    "filename": "src/tutorials/point-light/index.html"
+    "filename": "src/tutorials/point-light/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl"
+    ]
   },
   {
     "title": "Sphere Geometry",
-    "filename": "src/tutorials/sphere-geometry/index.html"
+    "filename": "src/tutorials/sphere-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Box Geometry",
-    "filename": "src/tutorials/box-geometry/index.html"
+    "filename": "src/tutorials/box-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Cylinder Geometry",
-    "filename": "src/tutorials/cylinder-geometry/index.html"
+    "filename": "src/tutorials/cylinder-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Torus Geometry",
-    "filename": "src/tutorials/torus-geometry/index.html"
+    "filename": "src/tutorials/torus-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Torus Knot Geometry",
-    "filename": "src/tutorials/torus-knot-geometry/index.html"
+    "filename": "src/tutorials/torus-knot-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Cone Geometry",
-    "filename": "src/tutorials/cone-geometry/index.html"
+    "filename": "src/tutorials/cone-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Plane Geometry",
-    "filename": "src/tutorials/plane-geometry/index.html"
+    "filename": "src/tutorials/plane-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Jewel Geometry",
-    "filename": "src/tutorials/jewel-geometry/index.html"
+    "filename": "src/tutorials/jewel-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Shadow Mapping",
-    "filename": "src/tutorials/shadow-mapping/index.html"
+    "filename": "src/tutorials/shadow-mapping/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "shadow-vertex.wgsl"
+    ]
   },
   {
     "title": "Rock Geometry",
-    "filename": "src/tutorials/rock-geometry/index.html"
+    "filename": "src/tutorials/rock-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl"
+    ]
   },
   {
     "title": "Wireframe",
-    "filename": "src/tutorials/wireframe/index.html"
+    "filename": "src/tutorials/wireframe/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl",
+      "wireframe-models.ts"
+    ]
   }
 ]

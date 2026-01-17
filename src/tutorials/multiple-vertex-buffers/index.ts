@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -38,30 +40,13 @@ async function init() {
 
   // 4. Define Shaders
   // Note: We output the color from vertex shader to fragment shader
-  const shaderModule = device.createShaderModule({
-    label: "Multiple Buffers Shader",
-    code: `
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) color : vec3f,
-      };
-
-      @vertex
-      fn vs_main(
-        @location(0) pos : vec2f,
-        @location(1) color : vec3f
-      ) -> VertexOutput {
-        var output : VertexOutput;
-        output.position = vec4f(pos, 0.0, 1.0);
-        output.color = color;
-        return output;
-      }
-
-      @fragment
-      fn fs_main(@location(0) color : vec3f) -> @location(0) vec4f {
-        return vec4f(color, 1.0);
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Multiple Buffers Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Multiple Buffers Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 5. Define Layouts for TWO buffers
@@ -92,13 +77,13 @@ async function init() {
     label: "Multiple Buffers Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       // The order in this array determines the slot index (0 and 1)
       buffers: [positionBufferLayout, colorBufferLayout],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

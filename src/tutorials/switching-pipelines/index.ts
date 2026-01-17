@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -27,37 +29,13 @@ async function init() {
   device.queue.writeBuffer(vertexBuffer, 0, vertices);
 
   // 2. Define Shader Module with Multiple Entry Points
-  const shaderModule = device.createShaderModule({
-    label: "Multi-Material Shader",
-    code: `
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) localPos : vec3f,
-      };
-
-      @vertex
-      fn vs_main(@location(0) pos : vec3f) -> VertexOutput {
-        var output : VertexOutput;
-        output.position = vec4f(pos, 1.0);
-        output.localPos = pos; // Pass local position to fragment for gradient
-        return output;
-      }
-
-      // --- Fragment Shader 1: Solid Color ---
-      @fragment
-      fn fs_solid() -> @location(0) vec4f {
-        return vec4f(1.0, 0.5, 0.0, 1.0); // Solid Orange
-      }
-
-      // --- Fragment Shader 2: Gradient ---
-      @fragment
-      fn fs_gradient(in : VertexOutput) -> @location(0) vec4f {
-        // Calculate color based on Y position
-        // Map Y from [-0.5, 0.5] to [0.0, 1.0]
-        let t = in.localPos.y + 0.5;
-        return vec4f(0.0, t, 1.0 - t, 1.0); // Blue to Green gradient
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Multi-Material Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Multi-Material Fragment Shader",
+    code: fragmentWGSL,
   });
 
   const vertexBufferLayout: GPUVertexBufferLayout = {
@@ -70,12 +48,12 @@ async function init() {
     label: "Solid Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [vertexBufferLayout],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_solid", // <--- Different Entry Point
       targets: [{ format: canvasFormat }],
     },
@@ -87,12 +65,12 @@ async function init() {
     label: "Gradient Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [vertexBufferLayout],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_gradient", // <--- Different Entry Point
       targets: [{ format: canvasFormat }],
     },

@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -43,19 +45,13 @@ async function init() {
 
   // 3. Define Shader
   // Simple pass-through shader
-  const shaderModule = device.createShaderModule({
-    label: "Basic Shader",
-    code: `
-      @vertex
-      fn vs_main(@location(0) pos : vec3f) -> @builtin(position) vec4f {
-        return vec4f(pos, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return vec4f(0.0, 1.0, 0.5, 1.0); // Teal color
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Switching Vertex Buffers Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Switching Vertex Buffers Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 4. Create Pipeline
@@ -63,7 +59,7 @@ async function init() {
     label: "Basic Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         {
@@ -73,7 +69,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

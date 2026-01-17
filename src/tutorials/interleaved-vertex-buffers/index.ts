@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -26,30 +28,13 @@ async function init() {
   device.queue.writeBuffer(vertexBuffer, 0, vertices);
 
   // 4. Define Shaders (Same as before)
-  const shaderModule = device.createShaderModule({
-    label: "Interleaved Buffer Shader",
-    code: `
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) color : vec3f,
-      };
-
-      @vertex
-      fn vs_main(
-        @location(0) pos : vec2f,
-        @location(1) color : vec3f
-      ) -> VertexOutput {
-        var output : VertexOutput;
-        output.position = vec4f(pos, 0.0, 1.0);
-        output.color = color;
-        return output;
-      }
-
-      @fragment
-      fn fs_main(@location(0) color : vec3f) -> @location(0) vec4f {
-        return vec4f(color, 1.0);
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Interleaved Buffer Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Interleaved Buffer Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 5. Define Vertex Buffer Layout
@@ -75,12 +60,12 @@ async function init() {
     label: "Interleaved Buffer Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [vertexBufferLayout], // Just one buffer layout
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

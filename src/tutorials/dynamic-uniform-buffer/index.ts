@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -66,31 +68,13 @@ async function init() {
   device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
   // 3. Define Shaders
-  const shaderModule = device.createShaderModule({
-    label: "Dynamic Uniform Shader",
-    code: `
-      struct Uniforms {
-        color : vec4f,
-      };
-
-      // Group 0, Binding 0, with dynamic offset
-      @group(0) @binding(0) var<uniform> global : Uniforms;
-
-      @vertex
-      fn vs_main(
-        @builtin(instance_index) instanceIdx : u32,
-        @location(0) pos : vec3f
-      ) -> @builtin(position) vec4f {
-        // Shift x-position based on instance index so we can see them separate
-        let xOffset = (f32(instanceIdx) - 2.0) * 0.5;
-        return vec4f(pos.x + xOffset, pos.y, pos.z, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return global.color;
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Dynamic Uniform Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Dynamic Uniform Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 4. Create Pipeline
@@ -98,7 +82,7 @@ async function init() {
     label: "Dynamic Uniform Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         {
@@ -108,7 +92,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },
@@ -147,7 +131,7 @@ async function init() {
       bindGroupLayouts: [bindGroupLayout],
     }),
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         {
@@ -157,7 +141,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

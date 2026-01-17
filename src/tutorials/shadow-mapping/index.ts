@@ -1,132 +1,12 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4, vec3 } from "wgpu-matrix";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import litVertexWGSL from "./lit-vertex.wgsl?raw";
+import litFragmentWGSL from "./lit-fragment.wgsl?raw";
+import shadowVertexWGSL from "./shadow-vertex.wgsl?raw";
 
-const shaderCode = `
-struct Uniforms {
-  viewProjectionMatrix : mat4x4f,
-  modelMatrix : mat4x4f,
-  color : vec4f,
-}
-
-struct LightUniforms {
-  ambientColor : vec4f,
-  dirLightDirection : vec4f,
-  dirLightColor : vec4f,
-  lightViewProjectionMatrix : mat4x4f,
-}
-
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<uniform> lightUniforms : LightUniforms;
-
-struct VertexOutput {
-  @builtin(position) position : vec4f,
-  @location(0) normal : vec3f,
-  @location(1) shadowPos : vec3f,
-}
-
-@vertex
-fn vs_main(
-  @location(0) pos : vec3f,
-  @location(1) normal : vec3f
-) -> VertexOutput {
-  var out : VertexOutput;
-  let worldPos = uniforms.modelMatrix * vec4f(pos, 1.0);
-  out.position = uniforms.viewProjectionMatrix * worldPos;
-  
-  // Transform normal to world space (using 3x3 part of model matrix for uniform scaling)
-  // For non-uniform scaling, we'd need the inverse-transpose of the model matrix.
-  // Since we are only doing uniform scaling here, using the model matrix is roughly okay 
-  // if we normalize, but correct way is to use a normal matrix. 
-  // For this tutorial's simplicity with uniform scaling, we'll use the model matrix.
-  out.normal = (uniforms.modelMatrix * vec4f(normal, 0.0)).xyz;
-  let posFromLight = lightUniforms.lightViewProjectionMatrix * worldPos;
-  let ndc = posFromLight.xyz / posFromLight.w;
-  out.shadowPos = vec3f(
-    ndc.xy * vec2f(0.5, -0.5) + vec2f(0.5, 0.5),
-    ndc.z
-  );
-  
-  return out;
-}
-
-@group(0) @binding(2) var shadowMap : texture_depth_2d;
-@group(0) @binding(3) var shadowSampler : sampler_comparison;
-
-const shadowMapSize : f32 = 2048.0;
-
-fn computeShadow(shadowPos : vec3f, normal : vec3f, lightDir : vec3f) -> f32 {
-  let uv = shadowPos.xy;
-  let depth = shadowPos.z;
-  let inBounds = select(0.0, 1.0,
-    uv.x >= 0.0 && uv.x <= 1.0 &&
-    uv.y >= 0.0 && uv.y <= 1.0 &&
-    depth >= 0.0 && depth <= 1.0
-  );
-  let uvClamped = clamp(uv, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
-  let depthClamped = clamp(depth, 0.0, 1.0);
-  let bias = max(0.004 * (1.0 - dot(normal, lightDir)), 0.001);
-  let texelSize = 1.0 / shadowMapSize;
-
-  var visibility = 0.0;
-  for (var y = -1; y <= 1; y++) {
-    for (var x = -1; x <= 1; x++) {
-      let offset = vec2f(vec2(x, y)) * texelSize;
-      visibility += textureSampleCompare(
-        shadowMap,
-        shadowSampler,
-        uvClamped + offset,
-        depthClamped - bias
-      );
-    }
-  }
-  visibility = visibility / 9.0;
-  return mix(1.0, visibility, inBounds);
-}
-
-@fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-  let N = normalize(in.normal);
-  
-  // Ambient
-  let ambient = lightUniforms.ambientColor.rgb * 0.3; // 0.3 strength
-  
-  // Directional
-  let L = normalize(-lightUniforms.dirLightDirection.xyz);
-  let diff = max(dot(N, L), 0.0);
-  let diffuse = diff * lightUniforms.dirLightColor.rgb;
-
-  let shadow = computeShadow(in.shadowPos, N, L);
-  
-  // Combine
-  let lighting = ambient + diffuse * shadow;
-  let finalColor = uniforms.color.rgb * lighting;
-  
-  return vec4f(finalColor, uniforms.color.a);
-}
-`;
-
-const shadowShaderCode = `
-struct Uniforms {
-  viewProjectionMatrix : mat4x4f,
-  modelMatrix : mat4x4f,
-  color : vec4f,
-}
-
-struct LightUniforms {
-  ambientColor : vec4f,
-  dirLightDirection : vec4f,
-  dirLightColor : vec4f,
-  lightViewProjectionMatrix : mat4x4f,
-}
-
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<uniform> lightUniforms : LightUniforms;
-
-@vertex
-fn vs_shadow(@location(0) pos : vec3f) -> @builtin(position) vec4f {
-  return lightUniforms.lightViewProjectionMatrix * uniforms.modelMatrix * vec4f(pos, 1.0);
-}
-`;
+const shaderCode = `${litVertexWGSL}\n${litFragmentWGSL}`;
+const shadowShaderCode = shadowVertexWGSL;
 
 // --- Geometry Helpers ---
 
@@ -400,7 +280,7 @@ async function init() {
   const boxIndexBuffer = device.createBuffer({ size: boxGeo.indices.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
   device.queue.writeBuffer(boxIndexBuffer, 0, boxGeo.indices);
 
-  const depthTexture = device.createTexture({
+  let depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -464,10 +344,7 @@ async function init() {
   });
 
   // --- Scene State ---
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
   const viewMatrix = mat4.lookAt([5, 5, 5], [0, 0, 0], [0, 1, 0]);
-  const viewProjectionMatrix = mat4.multiply(projectionMatrix, viewMatrix);
 
   const planeModelMatrix = mat4.identity();
   
@@ -481,6 +358,25 @@ async function init() {
   let lightAngle = 0;
 
   function renderFrame() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
+
+    const aspect = canvas.width / canvas.height;
+    const projectionMatrix = mat4.perspective(
+      (2 * Math.PI) / 5,
+      aspect,
+      0.1,
+      100.0
+    );
+    const viewProjectionMatrix = mat4.multiply(projectionMatrix, viewMatrix);
+
     lightAngle += 0.01;
     const lightDir = vec3.normalize([
       Math.cos(lightAngle),

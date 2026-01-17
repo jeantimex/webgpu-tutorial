@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -37,29 +39,13 @@ async function init() {
   device.queue.writeBuffer(uniformBuffer, 0, color);
 
   // 3. Define Shaders
-  const shaderModule = device.createShaderModule({
-    label: "Uniform Shader",
-    code: `
-      // Define the structure of our uniform
-      struct Uniforms {
-        color : vec4f,
-      };
-
-      // Declare the uniform variable
-      // Group 0, Binding 0
-      @group(0) @binding(0) var<uniform> global : Uniforms;
-
-      @vertex
-      fn vs_main(@location(0) pos : vec2f) -> @builtin(position) vec4f {
-        return vec4f(pos, 0.0, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        // Return the color from the uniform buffer
-        return global.color;
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Uniform Buffer Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Uniform Buffer Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 4. Create Render Pipeline
@@ -67,7 +53,7 @@ async function init() {
     label: "Uniform Pipeline",
     layout: "auto", // Let WebGPU infer the bind group layout
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         {
@@ -77,7 +63,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },
