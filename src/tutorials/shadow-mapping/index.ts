@@ -1,5 +1,6 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4, vec3 } from "wgpu-matrix";
+import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
 import litVertexWGSL from "./lit-vertex.wgsl?raw";
 import litFragmentWGSL from "./lit-fragment.wgsl?raw";
 import shadowVertexWGSL from "./shadow-vertex.wgsl?raw";
@@ -279,7 +280,7 @@ async function init() {
   const boxIndexBuffer = device.createBuffer({ size: boxGeo.indices.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
   device.queue.writeBuffer(boxIndexBuffer, 0, boxGeo.indices);
 
-  const depthTexture = device.createTexture({
+  let depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: "depth24plus",
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -343,10 +344,7 @@ async function init() {
   });
 
   // --- Scene State ---
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective((2 * Math.PI) / 5, aspect, 0.1, 100.0);
   const viewMatrix = mat4.lookAt([5, 5, 5], [0, 0, 0], [0, 1, 0]);
-  const viewProjectionMatrix = mat4.multiply(projectionMatrix, viewMatrix);
 
   const planeModelMatrix = mat4.identity();
   
@@ -360,6 +358,25 @@ async function init() {
   let lightAngle = 0;
 
   function renderFrame() {
+    const resized = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      depthTexture.destroy();
+      depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
+
+    const aspect = canvas.width / canvas.height;
+    const projectionMatrix = mat4.perspective(
+      (2 * Math.PI) / 5,
+      aspect,
+      0.1,
+      100.0
+    );
+    const viewProjectionMatrix = mat4.multiply(projectionMatrix, viewMatrix);
+
     lightAngle += 0.01;
     const lightDir = vec3.normalize([
       Math.cos(lightAngle),
