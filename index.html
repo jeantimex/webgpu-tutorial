@@ -722,6 +722,7 @@
 
       let currentMode = "tutorial";
       let currentPage = "";
+      let previousPage = "";
       let links = [];
       let tutorials = [];
       let currentCodeFile = "";
@@ -1082,6 +1083,12 @@
       }
 
       function loadContent() {
+        if (currentPage !== previousPage) {
+          currentCodeFile = "";
+          demoTabs.innerHTML = "";
+          previousPage = currentPage;
+        }
+
         const currentTutorial = getCurrentTutorial();
         if (currentTutorial) {
           const index = tutorials.findIndex(
