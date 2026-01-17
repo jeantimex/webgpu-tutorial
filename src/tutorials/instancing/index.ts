@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -64,47 +66,17 @@ async function init() {
   device.queue.writeBuffer(uniformBuffer, 0, instanceData);
 
   // 4. Define Shaders
-  const shaderModule = device.createShaderModule({
-    label: "Instancing Shader",
-    code: `
-      struct Instance {
-        color : vec4f,
-        offset : vec2f,
-        // Implicit padding of 8 bytes here to reach 32-byte stride
-      };
-
-      struct Uniforms {
-        instances : array<Instance, ${numInstances}>,
-      };
-
-      @group(0) @binding(0) var<uniform> global : Uniforms;
-
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) color : vec4f,
-      };
-
-      @vertex
-      fn vs_main(
-        @builtin(instance_index) instanceIdx : u32,
-        @location(0) pos : vec3f
-      ) -> VertexOutput {
-        // Pick the instance data
-        let inst = global.instances[instanceIdx];
-        
-        var output : VertexOutput;
-        // Apply offset to position
-        output.position = vec4f(pos.xy + inst.offset, pos.z, 1.0);
-        output.color = inst.color;
-        
-        return output;
-      }
-
-      @fragment
-      fn fs_main(@location(0) color : vec4f) -> @location(0) vec4f {
-        return color;
-      }
-    `,
+  const vertexSource = vertexWGSL.replace(
+    /__INSTANCE_COUNT__/g,
+    String(numInstances)
+  );
+  const vertexModule = device.createShaderModule({
+    label: "Instancing Vertex Shader",
+    code: vertexSource,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Instancing Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 5. Create Pipeline
@@ -112,7 +84,7 @@ async function init() {
     label: "Instancing Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         // Buffer 0: Geometry only
@@ -124,7 +96,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

@@ -61,47 +61,111 @@
   },
   {
     "title": "Multiple Vertex Buffers",
-    "filename": "src/tutorials/multiple-vertex-buffers/index.html"
+    "filename": "src/tutorials/multiple-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Interleaved Vertex Buffers",
-    "filename": "src/tutorials/interleaved-vertex-buffers/index.html"
+    "filename": "src/tutorials/interleaved-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Dynamic Uniform Buffer",
-    "filename": "src/tutorials/dynamic-uniform-buffer/index.html"
+    "filename": "src/tutorials/dynamic-uniform-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Single Transformation",
-    "filename": "src/tutorials/single-transformation/index.html"
+    "filename": "src/tutorials/single-transformation/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Combined Transformations",
-    "filename": "src/tutorials/combined-transformations/index.html"
+    "filename": "src/tutorials/combined-transformations/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Instancing",
-    "filename": "src/tutorials/instancing/index.html"
+    "filename": "src/tutorials/instancing/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Instanced Vertex Buffer",
-    "filename": "src/tutorials/instanced-vertex-buffer/index.html"
+    "filename": "src/tutorials/instanced-vertex-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Switching Pipelines",
-    "filename": "src/tutorials/switching-pipelines/index.html"
+    "filename": "src/tutorials/switching-pipelines/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Switching Vertex Buffers",
-    "filename": "src/tutorials/switching-vertex-buffers/index.html"
+    "filename": "src/tutorials/switching-vertex-buffers/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Simple Compute Shader",
-    "filename": "src/tutorials/simple-compute/index.html"
+    "filename": "src/tutorials/simple-compute/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl"
+    ]
   },
   {
     "title": "Particle System",
-    "filename": "src/tutorials/particle-system/index.html"
+    "filename": "src/tutorials/particle-system/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Image Particles",

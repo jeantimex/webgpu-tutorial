@@ -1,5 +1,7 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -48,31 +50,13 @@ async function init() {
   device.queue.writeBuffer(instanceBuffer, 0, instanceData);
 
   // 3. Define Shaders
-  const shaderModule = device.createShaderModule({
-    label: "Simplified Instancing Shader",
-    code: `
-      struct VertexOutput {
-        @builtin(position) position : vec4f,
-        @location(0) color : vec4f,
-      };
-
-      @vertex
-      fn vs_main(
-        @location(0) pos : vec3f,         // From Geometry Buffer
-        @location(1) offset : vec2f,      // From Instance Buffer
-        @location(2) color : vec4f        // From Instance Buffer
-      ) -> VertexOutput {
-        var output : VertexOutput;
-        output.position = vec4f(pos.xy + offset, pos.z, 1.0);
-        output.color = color;
-        return output;
-      }
-
-      @fragment
-      fn fs_main(@location(0) color : vec4f) -> @location(0) vec4f {
-        return color;
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Instanced Vertex Buffer Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Instanced Vertex Buffer Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 4. Create Pipeline
@@ -80,7 +64,7 @@ async function init() {
     label: "Simplified Instancing Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         // Buffer 0: Geometry (step per vertex)
@@ -101,7 +85,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

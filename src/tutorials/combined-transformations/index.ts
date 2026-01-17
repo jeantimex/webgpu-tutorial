@@ -1,6 +1,8 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4, vec3 } from "wgpu-matrix";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -57,25 +59,13 @@ async function init() {
   updateTransformation();
 
   // 4. Define Shaders (Same as 08)
-  const shaderModule = device.createShaderModule({
-    label: "Transformation Shader",
-    code: `
-      struct Uniforms {
-        modelMatrix : mat4x4f,
-      };
-
-      @group(0) @binding(0) var<uniform> global : Uniforms;
-
-      @vertex
-      fn vs_main(@location(0) pos : vec3f) -> @builtin(position) vec4f {
-        return global.modelMatrix * vec4f(pos, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return vec4f(1.0, 0.0, 0.0, 1.0); // Red
-      }
-    `,
+  const vertexModule = device.createShaderModule({
+    label: "Combined Transform Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Combined Transform Fragment Shader",
+    code: fragmentWGSL,
   });
 
   // 5. Create Pipeline
@@ -83,7 +73,7 @@ async function init() {
     label: "Combined Transformation Pipeline",
     layout: "auto",
     vertex: {
-      module: shaderModule,
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [
         {
@@ -93,7 +83,7 @@ async function init() {
       ],
     },
     fragment: {
-      module: shaderModule,
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },
