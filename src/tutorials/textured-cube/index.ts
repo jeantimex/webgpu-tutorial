@@ -1,37 +1,11 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import { mat4 } from "wgpu-matrix";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
-const shaderCode = `
-struct Uniforms {
-  mvpMatrix : mat4x4f,
-}
-
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var mySampler : sampler;
-@group(0) @binding(2) var myTexture : texture_2d<f32>;
-
-struct VertexOutput {
-  @builtin(position) position : vec4f,
-  @location(0) uv : vec2f,
-}
-
-@vertex
-fn vs_main(
-  @location(0) pos : vec3f,
-  @location(1) uv : vec2f
-) -> VertexOutput {
-  var out : VertexOutput;
-  out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
-  out.uv = uv;
-  return out;
-}
-
-@fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-  return textureSample(myTexture, mySampler, in.uv);
-}
-`;
+const vertexShaderCode = vertexWGSL;
+const fragmentShaderCode = fragmentWGSL;
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -142,10 +116,19 @@ async function init() {
   });
 
   // --- 5. Pipeline ---
+  const vertexModule = device.createShaderModule({
+    label: "Textured Cube Vertex Shader",
+    code: vertexShaderCode,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Textured Cube Fragment Shader",
+    code: fragmentShaderCode,
+  });
+
   const pipeline = device.createRenderPipeline({
     layout: "auto",
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 20, // 5 floats * 4 bytes
@@ -156,7 +139,7 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },

@@ -4,8 +4,8 @@
     "filename": "src/tutorials/hello-webgpu/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -14,8 +14,8 @@
     "filename": "src/tutorials/primitives/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -24,8 +24,8 @@
     "filename": "src/tutorials/vertex-buffer/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -34,8 +34,8 @@
     "filename": "src/tutorials/shader-structs/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -44,8 +44,8 @@
     "filename": "src/tutorials/uniform-buffer/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -54,8 +54,8 @@
     "filename": "src/tutorials/index-buffer/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -64,8 +64,8 @@
     "filename": "src/tutorials/multiple-vertex-buffers/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -74,8 +74,8 @@
     "filename": "src/tutorials/interleaved-vertex-buffers/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -84,8 +84,8 @@
     "filename": "src/tutorials/dynamic-uniform-buffer/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -94,8 +94,8 @@
     "filename": "src/tutorials/single-transformation/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -104,8 +104,8 @@
     "filename": "src/tutorials/combined-transformations/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -114,8 +114,8 @@
     "filename": "src/tutorials/instancing/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -124,8 +124,8 @@
     "filename": "src/tutorials/instanced-vertex-buffer/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -134,8 +134,8 @@
     "filename": "src/tutorials/switching-pipelines/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -144,8 +144,8 @@
     "filename": "src/tutorials/switching-vertex-buffers/index.html",
     "code": [
       "index.ts",
-      "vertex.wgsl",
-      "fragment.wgsl",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
       "webgpu-util.ts"
     ]
   },
@@ -209,39 +209,94 @@
   },
   {
     "title": "Hello Cube (3D & MVP)",
-    "filename": "src/tutorials/hello-cube/index.html"
+    "filename": "src/tutorials/hello-cube/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Indexed Cube",
-    "filename": "src/tutorials/indexed-cube/index.html"
+    "filename": "src/tutorials/indexed-cube/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Cube Face Colors",
-    "filename": "src/tutorials/cube-face-colors/index.html"
+    "filename": "src/tutorials/cube-face-colors/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Textured Cube",
-    "filename": "src/tutorials/textured-cube/index.html"
+    "filename": "src/tutorials/textured-cube/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Texture Atlas",
-    "filename": "src/tutorials/texture-atlas/index.html"
+    "filename": "src/tutorials/texture-atlas/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Directional Light",
-    "filename": "src/tutorials/directional-light/index.html"
+    "filename": "src/tutorials/directional-light/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Ambient Light",
-    "filename": "src/tutorials/ambient-light/index.html"
+    "filename": "src/tutorials/ambient-light/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Point Light",
-    "filename": "src/tutorials/point-light/index.html"
+    "filename": "src/tutorials/point-light/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Sphere Geometry",
-    "filename": "src/tutorials/sphere-geometry/index.html"
+    "filename": "src/tutorials/sphere-geometry/index.html",
+    "code": [
+      "index.ts",
+      "lit-vertex.wgsl",
+      "lit-fragment.wgsl",
+      "wireframe.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Box Geometry",

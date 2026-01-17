@@ -2,47 +2,11 @@ import { initWebGPU } from "../../utils/webgpu-util";
 import { mat3, mat4, vec3 } from "wgpu-matrix";
 import GUI from "lil-gui";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
-const shaderCode = `
-struct Uniforms {
-  mvpMatrix : mat4x4f,
-  modelMatrix : mat4x4f,
-  normalMatrix : mat3x3f,
-  lightDirIntensity : vec4f,
-}
-
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-
-struct VertexOutput {
-  @builtin(position) position : vec4f,
-  @location(0) normal : vec3f,
-}
-
-@vertex
-fn vs_main(
-  @location(0) pos : vec3f,
-  @location(1) normal : vec3f,
-) -> VertexOutput {
-  var out : VertexOutput;
-  out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
-  
-  // Transform normal to world space
-  out.normal = uniforms.normalMatrix * normal;
-  return out;
-}
-
-@fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-  let N = normalize(in.normal);
-  let L = normalize(uniforms.lightDirIntensity.xyz);
-  
-  // Diffuse only
-  let diffuse = max(dot(N, L), 0.0) * max(uniforms.lightDirIntensity.w, 0.0);
-  
-  let baseColor = vec3f(1.0, 0.0, 0.0); // Red
-  return vec4f(baseColor * diffuse, 1.0);
-}
-`;
+const vertexShaderCode = vertexWGSL;
+const fragmentShaderCode = fragmentWGSL;
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
@@ -129,10 +93,19 @@ async function init() {
   });
 
   // --- 3. Pipeline ---
+  const vertexModule = device.createShaderModule({
+    label: "Directional Light Vertex Shader",
+    code: vertexShaderCode,
+  });
+  const fragmentModule = device.createShaderModule({
+    label: "Directional Light Fragment Shader",
+    code: fragmentShaderCode,
+  });
+
   const pipeline = device.createRenderPipeline({
     layout: "auto",
     vertex: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: vertexModule,
       entryPoint: "vs_main",
       buffers: [{
         arrayStride: 24, // 3 floats (pos) + 3 floats (normal)
@@ -143,7 +116,7 @@ async function init() {
       }],
     },
     fragment: {
-      module: device.createShaderModule({ code: shaderCode }),
+      module: fragmentModule,
       entryPoint: "fs_main",
       targets: [{ format: canvasFormat }],
     },
