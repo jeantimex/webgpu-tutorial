@@ -1,32 +1,20 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import vertexWGSL from "./vertex.wgsl?raw";
+import fragmentWGSL from "./fragment.wgsl?raw";
 
 async function init(): Promise<void> {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;
   const { device, context, canvasFormat } = await initWebGPU(canvas);
 
-  const shaderModule: GPUShaderModule = device.createShaderModule({
-    label: "Primitives Shader",
-    code: `
-      @vertex
-      fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
-        var pos = array<vec2f, 6>(
-          vec2f( 0.0,  0.5),
-          vec2f(-0.5,  0.0),
-          vec2f(-0.5, -0.5),
-          vec2f( 0.0, -0.5),
-          vec2f( 0.5, -0.5),
-          vec2f( 0.5,  0.0)
-        );
-        return vec4f(pos[VertexIndex], 0.0, 1.0);
-      }
-
-      @fragment
-      fn fs_main() -> @location(0) vec4f {
-        return vec4f(0.0, 1.0, 0.0, 1.0); // Green
-      }
-    `,
+  const vertexModule: GPUShaderModule = device.createShaderModule({
+    label: "Primitives Vertex Shader",
+    code: vertexWGSL,
+  });
+  const fragmentModule: GPUShaderModule = device.createShaderModule({
+    label: "Primitives Fragment Shader",
+    code: fragmentWGSL,
   });
 
   const topologies: GPUPrimitiveTopology[] = [
@@ -56,14 +44,14 @@ async function init(): Promise<void> {
       label: `${topology} Pipeline`,
       layout: "auto",
       vertex: {
-        module: shaderModule,
-        entryPoint: "vs_main",
-      },
-      fragment: {
-        module: shaderModule,
-        entryPoint: "fs_main",
-        targets: [{ format: canvasFormat }],
-      },
+      module: vertexModule,
+      entryPoint: "vs_main",
+    },
+    fragment: {
+      module: fragmentModule,
+      entryPoint: "fs_main",
+      targets: [{ format: canvasFormat }],
+    },
       primitive,
     });
   };

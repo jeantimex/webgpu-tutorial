@@ -11,23 +11,53 @@
   },
   {
     "title": "Primitives",
-    "filename": "src/tutorials/primitives/index.html"
+    "filename": "src/tutorials/primitives/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Vertex Buffer",
-    "filename": "src/tutorials/vertex-buffer/index.html"
+    "filename": "src/tutorials/vertex-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Shader Structs",
-    "filename": "src/tutorials/shader-structs/index.html"
+    "filename": "src/tutorials/shader-structs/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Uniform Buffer",
-    "filename": "src/tutorials/uniform-buffer/index.html"
+    "filename": "src/tutorials/uniform-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Index Buffer",
-    "filename": "src/tutorials/index-buffer/index.html"
+    "filename": "src/tutorials/index-buffer/index.html",
+    "code": [
+      "index.ts",
+      "vertex.wgsl",
+      "fragment.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Multiple Vertex Buffers",
