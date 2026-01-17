@@ -1,161 +1,18 @@
 import { initWebGPU } from "../../utils/webgpu-util";
 import GUI from "lil-gui";
 import { resizeCanvasToDisplaySize } from "../../utils/canvas-util";
+import computeWGSL from "./compute.wgsl?raw";
+import renderWGSL from "./render.wgsl?raw";
 
 // ==========================================
 // 1. Compute Shader (The Brains of the Boids)
 // ==========================================
-const computeShaderCode = `
-struct Boid {
-  pos : vec2f,
-  vel : vec2f,
-}
-
-struct Params {
-  cohesion : f32,
-  alignment : f32,
-  separation : f32,
-  visualRange : f32,
-  speedFactor : f32,
-}
-
-@group(0) @binding(0) var<storage, read> boidsIn : array<Boid>;
-@group(0) @binding(1) var<storage, read_write> boidsOut : array<Boid>;
-@group(0) @binding(2) var<uniform> params : Params;
-
-@compute @workgroup_size(64)
-fn cs_main(@builtin(global_invocation_id) id : vec3u) {
-  let index = id.x;
-  if (index >= arrayLength(&boidsIn)) { return; }
-
-  var boid = boidsIn[index];
-  
-  var center = vec2f(0.0, 0.0);
-  var avgVel = vec2f(0.0, 0.0);
-  var close = vec2f(0.0, 0.0);
-  var neighbors = 0.0;
-
-  let separationDistance = 0.05;
-
-  for (var i = 0u; i < arrayLength(&boidsIn); i++) {
-    if (i == index) { continue; }
-    
-    let other = boidsIn[i];
-    let dist = distance(boid.pos, other.pos);
-
-    if (dist < params.visualRange) {
-      // 1. Cohesion (Stay together)
-      center += other.pos;
-      
-      // 2. Alignment (Match speed)
-      avgVel += other.vel;
-      
-      neighbors += 1.0;
-    }
-
-    // 3. Separation (Don't crash)
-    if (dist < separationDistance) {
-      close += (boid.pos - other.pos);
-    }
-  }
-
-  if (neighbors > 0.0) {
-    center /= neighbors;
-    avgVel /= neighbors;
-
-    // Apply weights from GUI
-    boid.vel += (center - boid.pos) * params.cohesion;
-    boid.vel += (avgVel - boid.vel) * params.alignment;
-  }
-  
-  boid.vel += close * params.separation;
-
-  // Speed limits
-  let maxSpeed = 0.02;
-  let minSpeed = 0.005;
-  let speed = length(boid.vel);
-  if (speed > maxSpeed) {
-    boid.vel = (boid.vel / speed) * maxSpeed;
-  } else if (speed < minSpeed) {
-    boid.vel = (boid.vel / speed) * minSpeed;
-  }
-
-  // Update position with speed factor
-  boid.pos += boid.vel * params.speedFactor;
-
-  // Screen wrap (Toroidal)
-  if (boid.pos.x > 1.0) { boid.pos.x = -1.0; }
-  if (boid.pos.x < -1.0) { boid.pos.x = 1.0; }
-  if (boid.pos.y > 1.0) { boid.pos.y = -1.0; }
-  if (boid.pos.y < -1.0) { boid.pos.y = 1.0; }
-
-  boidsOut[index] = boid;
-}
-`;
+const computeShaderCode = computeWGSL;
 
 // ==========================================
 // 2. Render Shader (Draw them as Triangles)
 // ==========================================
-const renderShaderCode = `
-struct Boid {
-  pos : vec2f,
-  vel : vec2f,
-}
-
-struct RenderUniforms {
-  values : vec4f,
-}
-
-@group(0) @binding(0) var<storage, read> boids : array<Boid>;
-@group(0) @binding(1) var<uniform> renderUniforms : RenderUniforms;
-
-struct VertexOutput {
-  @builtin(position) position : vec4f,
-  @location(0) color : vec4f,
-}
-
-@vertex
-fn vs_main(
-  @builtin(vertex_index) vIdx : u32,
-  @builtin(instance_index) iIdx : u32
-) -> VertexOutput {
-  let boid = boids[iIdx];
-  let angle = atan2(boid.vel.y, boid.vel.x);
-  
-  // A small triangle pointing in the direction of velocity
-  var pos = array<vec2f, 3>(
-    vec2f( 0.02,  0.0), // Tip
-    vec2f(-0.015,  0.01), // Bottom Left
-    vec2f(-0.015, -0.01)  // Bottom Right
-  );
-
-  // Rotate triangle
-  let rotated = vec2f(
-    pos[vIdx].x * cos(angle) - pos[vIdx].y * sin(angle),
-    pos[vIdx].x * sin(angle) + pos[vIdx].y * cos(angle)
-  );
-
-  var finalPos = boid.pos + rotated;
-  let aspectRatio = renderUniforms.values.x;
-  if (aspectRatio > 1.0) {
-    finalPos = vec2f(finalPos.x / aspectRatio, finalPos.y);
-  } else {
-    finalPos = vec2f(finalPos.x, finalPos.y * aspectRatio);
-  }
-
-  var out : VertexOutput;
-  out.position = vec4f(finalPos, 0.0, 1.0);
-  
-  // Color based on velocity
-  out.color = vec4f(0.5 + boid.vel.x * 20.0, 0.5 + boid.vel.y * 20.0, 1.0, 1.0);
-  return out;
-}
-
-@fragment
-fn fs_main(@location(0) color : vec4f) -> @location(0) vec4f {
-  return color;
-}
-`;
+const renderShaderCode = renderWGSL;
 
 async function init() {
   const canvas = document.querySelector("#webgpu-canvas") as HTMLCanvasElement;

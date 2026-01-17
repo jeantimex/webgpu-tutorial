@@ -169,19 +169,43 @@
   },
   {
     "title": "Image Particles",
-    "filename": "src/tutorials/image-particles/index.html"
+    "filename": "src/tutorials/image-particles/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Image Processing",
-    "filename": "src/tutorials/image-processing/index.html"
+    "filename": "src/tutorials/image-processing/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Game of Life",
-    "filename": "src/tutorials/game-of-life/index.html"
+    "filename": "src/tutorials/game-of-life/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Boids Simulation",
-    "filename": "src/tutorials/boids-simulation/index.html"
+    "filename": "src/tutorials/boids-simulation/index.html",
+    "code": [
+      "index.ts",
+      "compute.wgsl",
+      "render.wgsl",
+      "webgpu-util.ts"
+    ]
   },
   {
     "title": "Hello Cube (3D & MVP)",
