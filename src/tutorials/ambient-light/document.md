@@ -1,35 +1,82 @@
 # Ambient Light
 
-In the previous tutorial, we saw that **Directional Light** creates strong contrasts: faces pointing toward the light are bright, while faces pointing away are completely black.
+Directional light alone creates harsh contrast: bright faces and completely black faces. Real scenes have **ambient light**, a simple approximation of indirect light bouncing around the environment.
 
-In the real world, shadows are rarely pitch black. Light bounces off walls, the floor, and other objects, filling the room with a base level of "background" light. This is called **Global Illumination**.
+Ambient lighting is not directional and does not depend on surface normals. It adds a uniform base illumination to every fragment.
 
-In real-time graphics, simulating billions of light bounces is too expensive. Instead, we use a cheap approximation called **Ambient Light**.
+**Key learning points:**
 
-## 1. What is Ambient Light?
+- What ambient light represents in real‑time graphics.
+- Why ambient light does not require normals.
+- How to combine ambient intensity with a base color.
+- How to pass lighting parameters through a uniform buffer.
 
-Ambient light is a constant amount of light added to **every single pixel** in the scene, regardless of its position or orientation.
+## 1. What ambient light simulates
 
-*   It has **no direction**.
-*   It has **no source position**.
-*   It requires **no normal vectors**.
+Ambient light approximates **global illumination** with a constant term. Instead of simulating light bounces, we apply a single scalar that brightens the entire object evenly.
 
-## 2. The Math
+That means:
 
-The calculation is incredibly simple:
+- No light direction
+- No shadowing
+- No per‑face variation
 
-`Final Color = Base Color * Ambient Intensity`
+It is useful as a “minimum brightness” layer when combined with other lights.
 
-If our red cube `(1, 0, 0)` is in a room with `0.5` ambient light, it will appear dark red `(0.5, 0, 0)` evenly across all faces.
+## 2. Simpler geometry input (no normals)
 
-## 3. Why it looks "Flat"
+Because ambient lighting ignores surface direction, we only need positions. The vertex buffer stores just `vec3f` positions, and the shader has no normal attribute.
 
-Because ambient light applies equally to every face, our 3D cube will look like a flat 2D hexagon. There is no shading to distinguish the front face from the side face.
+```typescript
+const vertexData = new Float32Array([
+  -0.5, -0.5,  0.5,
+   0.5, -0.5,  0.5,
+   0.5,  0.5,  0.5,
+  -0.5,  0.5,  0.5,
+  // ... remaining cube vertices
+]);
+```
 
-This is why Ambient Light is almost never used alone. It is designed to be the "minimum brightness" floor that is added to other lighting types (like Directional or Point lights).
+## 3. Uniform data: MVP + ambient + base color
 
-## 4. Implementation
+We keep the MVP matrix to place the cube in 3D, then add two lighting parameters:
 
-In this tutorial, we removed the `Normal` attribute from our vertex buffer because ambient light doesn't need it! We only pass the `Ambient Intensity` via a uniform buffer.
+- `ambient`: a single float stored in a `vec4f` for alignment.
+- `baseColor`: the cube's color.
 
-Use the slider in the demo to adjust the ambient intensity and see how the flat color changes.
+```wgsl
+struct Uniforms {
+  mvpMatrix : mat4x4f,
+  ambient : vec4f,
+  baseColor : vec4f,
+}
+```
+
+On the CPU we upload the values every frame:
+
+```typescript
+device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([settings.ambientIntensity, 0, 0, 0]));
+device.queue.writeBuffer(uniformBuffer, 80, new Float32Array([r, g, b, 1]));
+```
+
+## 4. Fragment shader: constant lighting
+
+Ambient lighting is just a multiplication of base color by intensity:
+
+```wgsl
+let baseColor = uniforms.baseColor.rgb;
+let lighting = baseColor * clamp(uniforms.ambient.x, 0.0, 1.0);
+return vec4f(lighting, 1.0);
+```
+
+Because every fragment uses the same value, the cube looks “flat.” That is expected: ambient light alone does not convey shape.
+
+## 5. Why this still matters
+
+Ambient light is rarely used alone, but it is almost always combined with other lights so shadows never become fully black. It provides a baseline that makes scenes more readable.
+
+## Common pitfalls
+
+- **Expecting shading**: ambient light does not vary by angle or surface.
+- **Forgetting alignment**: use `vec4f` to avoid padding issues.
+- **Using normals unnecessarily**: they are ignored in this lighting model.

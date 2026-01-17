@@ -1,40 +1,134 @@
 # Directional Light
 
-Up until now, our 3D objects have been "flat". They didn't react to light. In this tutorial, we implement **Directional Light** (Lambertian Reflection) to make our cube look solid.
+This tutorial adds **directional lighting** (Lambert diffuse) to a 3D cube. Directional light simulates sunlight: a single direction with parallel rays that illuminate surfaces based on their orientation.
 
-## 1. The Normal Vector
+We introduce surface **normals**, the **normal matrix**, and the dot product used in diffuse lighting.
 
-To calculate how light hits a surface, we need to know which direction the surface is facing. This direction vector is called the **Normal**.
+**Key learning points:**
 
-Since a cube has flat faces, every vertex on a single face shares the same normal.
-*   **Top Face:** Normal points UP `(0, 1, 0)`
-*   **Right Face:** Normal points RIGHT `(1, 0, 0)`
+- Why normals are required for lighting.
+- How to transform normals correctly using a normal matrix.
+- How Lambertian diffuse lighting works.
+- How to pass light direction and intensity to the shader.
+- Why indexed geometry uses per‑face normals for a cube.
 
-In our vertex buffer, we pass the **Normal** `(nx, ny, nz)` as an attribute along with the position. For simplicity, we use an **Index Buffer** and hardcode the color to **Red** in the shader.
+## 1. Geometry with normals
 
-## 2. Directional Light (Diffuse)
+Lighting needs a normal per vertex. For a cube, each face has a constant normal, so we store **24 vertices** (4 per face) instead of sharing vertices across faces. That keeps normals correct and produces flat shading.
 
-Directional light acts like the sun. The light rays are parallel and come from a single direction. In this tutorial, the light comes from the top-right-front `(1, 1, 1)`.
+```typescript
+// Position + Normal per vertex
+// Front (+Z)
+-0.5, -0.5,  0.5,   0, 0, 1,
+ 0.5, -0.5,  0.5,   0, 0, 1,
+ 0.5,  0.5,  0.5,   0, 0, 1,
+-0.5,  0.5,  0.5,   0, 0, 1,
+```
 
-The core math used here is the **Dot Product**. It calculates the relationship between the Surface Normal (**N**) and the Light Direction (**L**).
+We still index the vertices so we can render each face as two triangles:
 
-### The Math
-`brightness = max(dot(N, L), 0.0)`
+```typescript
+const indexData = new Uint16Array([
+  0, 1, 2,  2, 3, 0,   // Front
+  4, 5, 6,  6, 7, 4,   // Right
+  // ...
+]);
+```
 
-*   **Direct Hit**: If the surface faces the light directly, the dot product is `1.0` (Maximum Brightness).
-*   **Glancing Blow**: If the light is parallel to the surface, the result is `0.0` (No Light).
-*   **From Behind**: If the light is behind the surface, the result is negative. We use `max(..., 0.0)` to clamp it to zero.
+## 2. The uniform data
 
-### Result
-In this tutorial, faces that point away from the light will be **pitch black** because we haven't added any background "room" light yet. This makes the effect of the directional light very easy to see.
+We need multiple matrices and a light direction. The uniform block includes:
 
-## 3. Transforming Normals
-
-When the cube rotates, the normals must rotate with it! However, we cannot use the full MVP matrix because normals represent *directions*, not positions. They shouldn't be affected by translation (moving) or perspective.
-
-We use the **Model Matrix** (specifically the 3x3 rotation part) to transform the normal into world space.
+- **MVP matrix** (camera projection)
+- **Model matrix** (object transform)
+- **Normal matrix** (inverse‑transpose of model)
+- **Light direction + intensity**
 
 ```wgsl
-// Rotate the normal into world space using the Model Matrix
-out.normal = (uniforms.modelMatrix * vec4f(normal, 0.0)).xyz;
+struct Uniforms {
+  mvpMatrix : mat4x4f,
+  modelMatrix : mat4x4f,
+  normalMatrix : mat3x3f,
+  lightDirIntensity : vec4f,
+}
 ```
+
+On the CPU we compute and upload all of these each frame.
+
+## 3. The normal matrix (why not MVP?)
+
+Normals are **directions**, not positions. They should not be affected by translation, and they require correct handling of non‑uniform scale. The standard fix is to use the **inverse‑transpose** of the model matrix’s upper‑left 3×3:
+
+```typescript
+mat3.fromMat4(modelMatrix, normalMatrix);
+mat3.invert(normalMatrix, normalMatrix);
+mat3.transpose(normalMatrix, normalMatrix);
+```
+
+This keeps normals perpendicular to the surface after rotation and scaling.
+
+## 4. Vertex shader: transform positions and normals
+
+```wgsl
+@vertex
+fn vs_main(
+  @location(0) pos : vec3f,
+  @location(1) normal : vec3f
+) -> VertexOutput {
+  var out : VertexOutput;
+  out.position = uniforms.mvpMatrix * vec4f(pos, 1.0);
+  out.normal = uniforms.normalMatrix * normal;
+  return out;
+}
+```
+
+The vertex shader emits clip‑space positions and world‑space normals for the fragment shader.
+
+## 5. Fragment shader: Lambert diffuse
+
+Directional light uses the dot product between the surface normal **N** and light direction **L**:
+
+```wgsl
+let N = normalize(in.normal);
+let L = normalize(uniforms.lightDirIntensity.xyz);
+let diffuse = max(dot(N, L), 0.0) * max(uniforms.lightDirIntensity.w, 0.0);
+```
+
+This produces:
+
+- **1.0** when the surface faces the light.
+- **0.0** when the surface is perpendicular.
+- **0.0** when the light is behind the surface.
+
+We multiply a base color by this diffuse term:
+
+```wgsl
+let baseColor = vec3f(1.0, 0.0, 0.0);
+return vec4f(baseColor * diffuse, 1.0);
+```
+
+## 6. Light direction control
+
+The light direction is normalized on the CPU and sent along with intensity:
+
+```typescript
+const lightDir = vec3.normalize([
+  settings.lightDirX,
+  settings.lightDirY,
+  settings.lightDirZ,
+]);
+
+device.queue.writeBuffer(
+  uniformBuffer,
+  176,
+  new Float32Array([lightDir[0], lightDir[1], lightDir[2], settings.intensity])
+);
+```
+
+This makes the GUI sliders immediately affect lighting direction and brightness.
+
+## Common pitfalls
+
+- **Not normalizing the light direction**: produces incorrect brightness.
+- **Skipping the normal matrix**: lighting breaks when the model rotates or scales.
+- **Using shared cube vertices**: normals become averaged and edges look smooth.

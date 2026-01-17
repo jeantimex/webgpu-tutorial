@@ -1,21 +1,20 @@
 # Index Buffer
 
-In the last tutorial, we optimized our draw calls using Dynamic Uniform Buffers. However, for complex 3D models (like a cube or a sphere), vertices are often shared between multiple triangles. Duplicating these vertices is wasteful.
+When meshes become more complex, many triangles share the same vertices. If we duplicate vertex data for every triangle, memory grows quickly. **Index buffers** solve this by storing unique vertices once and referencing them by index.
 
-In this tutorial, we will learn how to use **Index Buffers**. This allows us to store each unique vertex only once and define the shape's topology by referencing those vertices by index.
+This tutorial draws a square using **4 vertices** and **6 indices**, demonstrating how indexed drawing reduces duplication and improves cache locality.
 
-**Key Learning Points:**
+**Key learning points:**
 
-- Reducing vertex data redundancy.
-- Creating a buffer with `GPUBufferUsage.INDEX`.
-- Using `setIndexBuffer` and `drawIndexed`.
-- Understanding `Uint16Array` vs `Uint32Array` for indices.
+- Why indexed drawing reduces vertex duplication.
+- How to create and fill a `GPUBuffer` with `GPUBufferUsage.INDEX`.
+- How `drawIndexed` differs from `draw`.
+- When to use `Uint16Array` vs `Uint32Array` for indices.
+- How winding order interacts with culling.
 
-## 1. Defining Unique Vertices
+## 1. Define unique vertices
 
-We want to draw a square. A square is made of 2 triangles. If we drew 2 separate triangles, we would need **6 vertices** (3+3). Two of them would be duplicates (the diagonal).
-
-With an Index Buffer, we only define the **4 unique corners**:
+A square made of two triangles normally needs 6 vertices (3 per triangle). With indices, we only store the 4 unique corners once:
 
 ```typescript
 // x,    y,      r,   g,   b
@@ -28,41 +27,59 @@ const vertices = new Float32Array([
 ]);
 ```
 
-## 2. Defining Indices
+## 2. Define the index list
 
-We define the drawing order using integers. Since we have fewer than 65,536 vertices, we can use `Uint16Array` (2 bytes per index) to save memory.
+The index buffer tells the GPU how to assemble triangles from the vertex array.
 
 ```typescript
-// Triangle 1: Top-Left -> Bottom-Left -> Bottom-Right
-// Triangle 2: Top-Left -> Bottom-Right -> Top-Right
+// Triangle 1: 0 -> 1 -> 2
+// Triangle 2: 0 -> 2 -> 3
 const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 ```
 
-## 3. Creating the Index Buffer
+### Uint16 vs Uint32
 
-This is similar to a vertex buffer, but we add `GPUBufferUsage.INDEX`.
+- **`Uint16Array`** supports up to 65,535 vertices.
+- **`Uint32Array`** is required for larger meshes.
+
+Using `Uint16Array` saves memory and bandwidth when you can.
+
+## 3. Create the index buffer
 
 ```typescript
 const indexBuffer = device.createBuffer({
+  label: "Index Buffer",
   size: indices.byteLength,
   usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
 });
+
 device.queue.writeBuffer(indexBuffer, 0, indices);
 ```
 
-## 4. Rendering
+Note the `INDEX` usage flag. Without it, `setIndexBuffer` will fail validation.
 
-In the render loop, we use `setIndexBuffer` and `drawIndexed`.
+## 4. Bind the index buffer and draw
+
+Indexed drawing uses `setIndexBuffer` and `drawIndexed`:
 
 ```typescript
+passEncoder.setPipeline(pipeline);
 passEncoder.setVertexBuffer(0, vertexBuffer);
 
-// 1. Bind the Index Buffer and specify the format
 passEncoder.setIndexBuffer(indexBuffer, "uint16");
-
-// 2. Draw Indexed
-// drawIndexed(indexCount, instanceCount, firstIndex, baseVertex, firstInstance)
-passEncoder.drawIndexed(6);
+passEncoder.drawIndexed(6); // 6 indices = 2 triangles
 ```
 
-We tell the GPU to process **6 indices**. It will look up the vertex data for each index and assemble the triangles.
+`drawIndexed` uses indices to look up vertices in the vertex buffer, then assembles primitives based on the pipeline topology (here, triangle-list).
+
+## 5. Winding order and culling
+
+The order of indices defines the triangle's winding (clockwise or counter‑clockwise). If your pipeline has back-face culling enabled and the winding is wrong, the triangle disappears.
+
+In this example, the indices are ordered to match the default front-face winding.
+
+## Common pitfalls
+
+- **Wrong index format**: `setIndexBuffer` must match the array type (`uint16` or `uint32`).
+- **Mismatched indices**: indices outside the vertex range cause undefined behavior.
+- **Unexpected culling**: if triangles vanish, check winding order or disable culling.

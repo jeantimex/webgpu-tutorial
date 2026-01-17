@@ -1,33 +1,93 @@
 # Point Light
 
-In this tutorial, we implement a **Point Light**.
+Directional light uses a single constant direction. A **point light** has a position in space, so every surface point sees a **different light direction**. This tutorial implements a point light using per‑fragment world positions and Lambertian diffuse shading.
 
-Unlike Directional Light, which simulates a distant source like the sun (parallel rays), a Point Light acts like a light bulb or a candle: it has a specific **position** in 3D space, and light radiates outwards in all directions.
+**Key learning points:**
 
-## 1. Light Direction Varies
+- How point lights differ from directional lights.
+- Why the light direction must be computed per fragment.
+- How to pass world‑space positions from vertex to fragment.
+- How to combine diffuse lighting with a small ambient term.
+- How the normal matrix keeps lighting correct under rotation.
 
-With directional light, the light vector `L` was a constant uniform for the entire scene.
+## 1. Point light vs. directional light
 
-With point light, the direction `L` is different for every single pixel (fragment) on the surface! To calculate it, we need two pieces of information in the shader:
-1.  **Light Position** (Uniform)
-2.  **Surface Position** (Varying/Interpolated)
+A directional light uses a single light vector `L` for the whole scene. A point light uses a **light position** and computes `L` per fragment:
 
-The direction vector is calculated as:
 ```wgsl
 let L = normalize(lightPos - surfacePos);
 ```
 
-## 2. World Space Coordinates
+This makes highlights move naturally across the surface as the object rotates.
 
-To perform this calculation correctly, both positions must be in the same coordinate space (usually **World Space**).
+## 2. World‑space positions
 
-In our Vertex Shader, we calculate the `worldPos` by multiplying the vertex position by the **Model Matrix** only (not the View or Projection matrices). We pass this `worldPos` to the Fragment Shader.
+To compute `lightPos - surfacePos`, both values must be in the same space. We use **world space**.
+
+The vertex shader outputs world position:
 
 ```wgsl
-// Vertex Shader
 out.worldPos = (uniforms.modelMatrix * vec4f(pos, 1.0)).xyz;
 ```
 
-## 3. The Result
+It also transforms normals using the normal matrix:
 
-In the demo, the light source is fixed at a specific position in space while the cube rotates. Notice how the highlight moves across the faces as they turn toward or away from the light source. This dynamic interaction is what gives point lights their realistic feel.
+```wgsl
+out.normal = uniforms.normalMatrix * normal;
+```
+
+## 3. Uniform data
+
+We send these values in a uniform block:
+
+```wgsl
+struct Uniforms {
+  mvpMatrix : mat4x4f,
+  modelMatrix : mat4x4f,
+  normalMatrix : mat3x3f,
+  lightPosIntensity : vec4f,
+}
+```
+
+On the CPU, we pack the light position and intensity into the last vec4:
+
+```typescript
+device.queue.writeBuffer(
+  uniformBuffer,
+  176,
+  new Float32Array([
+    settings.lightPosX,
+    settings.lightPosY,
+    settings.lightPosZ,
+    settings.intensity,
+  ])
+);
+```
+
+## 4. Fragment shader lighting
+
+We compute Lambert diffuse using the per‑fragment light vector:
+
+```wgsl
+let N = normalize(in.normal);
+let L = normalize(uniforms.lightPosIntensity.xyz - in.worldPos);
+let diffuse = max(dot(N, L), 0.0);
+```
+
+We add a small ambient term so the back faces are not fully black:
+
+```wgsl
+let ambient = 0.1;
+let lighting = min(diffuse * max(uniforms.lightPosIntensity.w, 0.0) + ambient, 1.0);
+return vec4f(baseColor * lighting, 1.0);
+```
+
+## 5. Why the normal matrix still matters
+
+Even with a point light, the diffuse term depends on surface normals. If you rotate the cube, the normals must rotate too. The normal matrix (inverse‑transpose of the model matrix’s 3×3) keeps this correct.
+
+## Common pitfalls
+
+- **Using view space for one value and world space for another**: lighting breaks.
+- **Skipping normal normalization**: diffuse intensity becomes unstable.
+- **Not updating light position** in the uniform buffer when GUI changes.

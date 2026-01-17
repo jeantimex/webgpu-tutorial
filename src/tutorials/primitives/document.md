@@ -1,30 +1,29 @@
 # Primitives
 
-This tutorial explains **primitive topology**, the rule WebGPU uses to turn a list of vertices into points, lines, or triangles. We use a small GUI so you can switch topology live and see how the same vertices connect differently.
+This tutorial introduces **primitive topology** in WebGPU: the rule that turns a list of vertices into points, lines, or triangles. We purposely keep the input simple (no vertex buffer yet) so you can focus on how topology changes connectivity.
+
+By the end, you will understand how the same six vertices can render as points, line segments, or triangles, and why changing topology requires rebuilding the render pipeline.
 
 ## What you should know after this tutorial
 
-- What a **primitive topology** is.
-- How `point-list`, `line-list`, `line-strip`, `triangle-list`, and `triangle-strip` differ.
-- How to rebuild a pipeline when a topology changes.
+- What **primitive topology** means in WebGPU.
+- How `point-list`, `line-list`, `line-strip`, `triangle-list`, and `triangle-strip` interpret the same vertex stream.
+- Why the pipeline must be recreated when `primitive.topology` changes.
+- Why strip topologies reference `stripIndexFormat` even without index buffers.
 
-## 1) The idea of a topology
+## 1. Why topology matters
 
-WebGPU needs a rule to decide how vertices form shapes. That rule is `primitive.topology` on the render pipeline.
+WebGPU does not infer how you want to connect vertices. You tell the pipeline how to interpret the vertex stream by setting:
 
-If you draw 6 vertices:
+- `primitive.topology` on the render pipeline.
 
-- Are they **6 points**?
-- Are they **3 separate lines**?
-- Are they **2 triangles**?
+That single setting decides whether your vertices become points, line segments, or triangles. With the same six vertices, you can get very different results.
 
-The topology answers that question.
+## 2. The vertex data (no buffers yet)
 
-## 2) The vertices we use
+To isolate topology, we hard-code a small hexagon-like shape in the **vertex shader** and index it using `@builtin(vertex_index)`. This lets us draw without a vertex buffer, which keeps the example small and focused.
 
-We define a small hexagon-like shape in the vertex shader using an array of 6 positions. We do this with `@builtin(vertex_index)` so we do **not** need a vertex buffer yet.
-
-```wgsl
+```typescript
 @vertex
 fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f {
   var pos = array<vec2f, 6>(
@@ -39,32 +38,37 @@ fn vs_main(@builtin(vertex_index) VertexIndex : u32) -> @builtin(position) vec4f
 }
 ```
 
-Each invocation of the vertex shader gets a different `VertexIndex`, so we pick a different position each time.
+Why this approach?
 
-## 3) The five topologies
+- `vertex_index` gives you a small, deterministic vertex stream.
+- It avoids buffer setup so you can focus on topology.
+- It is a great learning tool, but real scenes will use vertex buffers.
 
-### `point-list`
-Each vertex becomes a **single point**.
+The fragment shader is intentionally simple and just outputs a solid color.
 
-### `line-list`
-Every pair of vertices is one line:
-`(v0,v1)`, `(v2,v3)`, `(v4,v5)`.
+## 3. The five topologies
 
-### `line-strip`
-Every vertex (after the first) extends the line:
-`(v0,v1)`, `(v1,v2)`, `(v2,v3)` ...
+You can switch between these modes and see the same vertices connect differently:
 
-### `triangle-list`
-Every 3 vertices form an independent triangle:
-`(v0,v1,v2)`, `(v3,v4,v5)`.
+- **`point-list`**: every vertex is a point.
+- **`line-list`**: every pair of vertices is a line segment.
+- **`line-strip`**: every new vertex extends the line.
+- **`triangle-list`**: every three vertices form a triangle.
+- **`triangle-strip`**: every new vertex after the first two makes a new triangle.
 
-### `triangle-strip`
-Every new vertex after the first two creates a new triangle:
-`(v0,v1,v2)`, `(v1,v2,v3)`, `(v2,v3,v4)` ...
+Here is how six vertices are grouped:
 
-## 4) Switching topology with a GUI
+- **Point list**: v0, v1, v2, v3, v4, v5
+- **Line list**: (v0,v1), (v2,v3), (v4,v5)
+- **Line strip**: (v0,v1), (v1,v2), (v2,v3), (v3,v4), (v4,v5)
+- **Triangle list**: (v0,v1,v2), (v3,v4,v5)
+- **Triangle strip**: (v0,v1,v2), (v1,v2,v3), (v2,v3,v4), (v3,v4,v5)
 
-We reuse the same shader, but create a pipeline based on the selected topology. When the user changes the dropdown, we rebuild the pipeline and render again.
+## 4. Pipeline creation and why it must be rebuilt
+
+In WebGPU, **render pipelines are immutable**. You cannot change `primitive.topology` on the fly. If the user selects a new topology, you must create a new pipeline.
+
+We keep a small helper that creates a pipeline for a given topology:
 
 ```typescript
 const topologies: GPUPrimitiveTopology[] = [
@@ -74,10 +78,6 @@ const topologies: GPUPrimitiveTopology[] = [
   "triangle-list",
   "triangle-strip",
 ];
-
-const settings = {
-  topology: "triangle-list" as GPUPrimitiveTopology,
-};
 
 const createPipeline = (topology: GPUPrimitiveTopology) => {
   const primitive: GPUPrimitiveState = { topology };
@@ -89,11 +89,26 @@ const createPipeline = (topology: GPUPrimitiveTopology) => {
     label: `${topology} Pipeline`,
     layout: "auto",
     vertex: { module: shaderModule, entryPoint: "vs_main" },
-    fragment: { module: shaderModule, entryPoint: "fs_main", targets: [{ format: canvasFormat }] },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_main",
+      targets: [{ format: canvasFormat }],
+    },
     primitive,
   });
 };
+```
 
+### Why `stripIndexFormat` is required
+
+Strip topologies support **primitive restart** when using an index buffer. Even though we are not using an index buffer here, WebGPU requires the pipeline to declare which index format it would accept for a strip. This is a validation rule, so we set `stripIndexFormat` for line and triangle strips.
+
+## 5. UI: switching topology with lil-gui
+
+A small GUI lets you change topology live. When it changes, we recreate the pipeline and render again:
+
+```typescript
+const settings = { topology: "triangle-list" as GPUPrimitiveTopology };
 let pipeline = createPipeline(settings.topology);
 
 const gui = new GUI({ title: "Primitives" });
@@ -103,21 +118,21 @@ gui.add(settings, "topology", topologies).name("Topology").onChange(() => {
 });
 ```
 
-**Why `stripIndexFormat`?**  
-Strip topologies can use index buffers to “restart” strips. We are not using index buffers yet, but WebGPU requires that the pipeline says which index format it would expect if we did.
+This pattern is common in WebGPU: immutable pipeline state means dynamic toggles usually rebuild pipelines.
 
-## 5) Rendering the selected topology
+## 6. Rendering the selected topology
 
-We now render a single view, using the currently selected pipeline:
+Rendering is the same no matter which topology is active. Only the pipeline changes:
 
 ```typescript
 passEncoder.setPipeline(pipeline);
 passEncoder.draw(6);
 ```
 
-## Common beginner mistakes
+We issue one draw call with 6 vertices; the GPU connects them according to the pipeline's topology.
 
-- **Forgetting to change topology**: If nothing changes, verify `primitive.topology`.
-- **Using strip topology without `stripIndexFormat`**: The pipeline will fail validation.
+## Common pitfalls
 
-In the next tutorial we will move beyond `vertex_index` and start using **vertex buffers**, which is how real meshes are provided to the GPU.
+- **Changing topology without rebuilding the pipeline**: the old pipeline stays active.
+- **Forgetting `stripIndexFormat` for strip modes**: WebGPU validation will fail.
+- **Assuming `vertex_index` replaces vertex buffers**: it is only for simple demos and procedural geometry.

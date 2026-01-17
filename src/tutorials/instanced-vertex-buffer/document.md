@@ -1,103 +1,113 @@
 # Instanced Vertex Buffer
 
-In the last tutorial, we implemented instancing using a Uniform Buffer Array to store position and color data. While this works for small batches, Uniform Buffers have strict size limits, making them unsuitable for massive numbers of instances (like particles or grass).
+Uniform-buffer instancing works, but uniform buffers have strict size limits. For large instance counts, the scalable approach is **instanced vertex buffers**: regular vertex buffers whose `stepMode` is set to `"instance"` so each instance reads a new chunk of data.
 
-In this tutorial, we will learn how to use **Instanced Vertex Buffers**. This is the standard, scalable way to handle per-instance data.
+This tutorial shows how to provide per-instance offsets and colors via a second vertex buffer.
 
-**Key Learning Points:**
+**Key learning points:**
 
-- Setting `stepMode: "instance"` in `GPUVertexBufferLayout`.
-- Interleaving per-instance data (offsets, colors).
-- Passing instance data as standard shader attributes (`@location(...)`).
-- Binding multiple vertex buffers (Geometry + Instance Data).
+- How `stepMode: "instance"` advances data once per instance.
+- How to interleave per-instance attributes (offset + color).
+- How to bind multiple vertex buffers (geometry + instance data).
+- How instance attributes flow into WGSL with `@location`.
 
-## 1. Concepts
+## 1. Two buffers: geometry and instance data
 
-- **Instance**: One copy of the object.
-- **`stepMode: "instance"`**: Tells the pipeline that this buffer's data should be read once per instance.
-- **Attributes**: Per-instance data (like offset and color) is received as standard attributes in the vertex shader.
+We keep geometry in one buffer and instance data in another. The geometry buffer is read per vertex, while the instance buffer advances once per instance.
 
-## 2. Preparing the Data
+```typescript
+// Geometry: triangle vertices
+const vertices = new Float32Array([
+   0.0,  0.1, 0.5,
+  -0.1, -0.1, 0.5,
+   0.1, -0.1, 0.5
+]);
+```
 
-In JavaScript, we prepare a single `Float32Array` that contains the data for all 10 instances. We interleave the **Offset** and **Color** for each instance.
-
-- **Offset**: 2 floats (x, y).
-- **Color**: 4 floats (r, g, b, a).
-- **Total per instance**: 6 floats (24 bytes).
+Instance data includes an offset (vec2) and a color (vec4):
 
 ```typescript
 const numInstances = 10;
-const floatsPerInstance = 6;
+const floatsPerInstance = 6; // 2 for offset, 4 for color
 const instanceData = new Float32Array(numInstances * floatsPerInstance);
 
 for (let i = 0; i < numInstances; i++) {
   const base = i * floatsPerInstance;
 
-  // Set Offset (Indices 0, 1)
-  instanceData[base + 0] = x;
-  instanceData[base + 1] = y;
+  // Offset
+  instanceData[base + 0] = Math.random() * 1.6 - 0.8;
+  instanceData[base + 1] = Math.random() * 1.6 - 0.8;
 
-  // Set Color (Indices 2, 3, 4, 5)
-  instanceData[base + 2] = r;
-  instanceData[base + 3] = g;
-  instanceData[base + 4] = b;
-  instanceData[base + 5] = a;
+  // Color
+  instanceData[base + 2] = Math.random();
+  instanceData[base + 3] = Math.random();
+  instanceData[base + 4] = Math.random();
+  instanceData[base + 5] = 1.0;
 }
 ```
 
-The resulting memory layout is: `[ Off0, Col0, Off1, Col1, ... ]`
+## 2. Describe the two buffer layouts
 
-## 3. Pipeline Configuration
-
-We define two buffers in our `vertex` state: one for the shared geometry and one for the unique instance data.
+The pipeline declares both buffers in the `vertex.buffers` array. The first buffer is `stepMode: "vertex"` (default), the second is `stepMode: "instance"`.
 
 ```typescript
 buffers: [
-  // Buffer 0: Geometry (Shared)
+  // Buffer 0: Geometry
   {
     arrayStride: 3 * 4,
-    stepMode: "vertex", // Read for every vertex
+    stepMode: "vertex",
     attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
   },
-  // Buffer 1: Instance Data (Unique per copy)
+  // Buffer 1: Instance data
   {
-    arrayStride: 6 * 4, // 6 floats * 4 bytes = 24 bytes
-    stepMode: "instance", // Read ONCE per instance
+    arrayStride: 6 * 4,
+    stepMode: "instance",
     attributes: [
-      { shaderLocation: 1, offset: 0, format: "float32x2" }, // Offset
-      { shaderLocation: 2, offset: 8, format: "float32x4" }, // Color
+      { shaderLocation: 1, offset: 0, format: "float32x2" }, // offset
+      { shaderLocation: 2, offset: 8, format: "float32x4" }, // color
     ],
   },
 ],
 ```
 
-## 4. The Shader
+**Key idea:** attributes in the second buffer advance once per instance, not per vertex.
 
-The shader receives both the vertex position and the instance data as attributes.
+## 3. Vertex shader inputs
 
-```wgsl
+Instance data appears as normal vertex attributes, just sourced from the instance buffer:
+
+```typescript
 @vertex
 fn vs_main(
-  @location(0) pos : vec3f,    // Vertex Position
-  @location(1) offset : vec2f, // Instance Offset
-  @location(2) color : vec4f   // Instance Color
+  @location(0) pos : vec3f,
+  @location(1) offset : vec2f,
+  @location(2) color : vec4f
 ) -> VertexOutput {
   var output : VertexOutput;
-  // Apply the instance offset directly to the vertex position
   output.position = vec4f(pos.xy + offset, pos.z, 1.0);
   output.color = color;
   return output;
 }
 ```
 
-## 5. Drawing
-
-In the render loop, we bind both buffers and specify the number of instances.
+## 4. Bind both buffers and draw
 
 ```typescript
 passEncoder.setVertexBuffer(0, geometryBuffer);
 passEncoder.setVertexBuffer(1, instanceBuffer);
-
-// Draw 3 vertices, 10 times!
-passEncoder.draw(3, 10);
+passEncoder.draw(3, numInstances);
 ```
+
+The GPU now draws the triangle multiple times, applying a new offset and color for each instance.
+
+## Why this scales better
+
+- Instance data lives in a normal vertex buffer, not a uniform buffer.
+- Vertex buffers can be much larger and are optimized for streaming.
+- You avoid uniform buffer size limits and alignment padding.
+
+## Common pitfalls
+
+- **Wrong `stepMode`**: if you forget `"instance"`, all instances share the first entry.
+- **Attribute mismatch**: WGSL `@location` values must match the pipeline layout.
+- **Wrong stride or offsets**: leads to color/offset corruption.
